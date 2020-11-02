@@ -1,6 +1,7 @@
 # Very basic multithreaded crawler that will crawl each drive on a separate thread.
 # If you are using SSD's you could probably get away with multiple crawlers per drive
 import threading
+from .movie_library import *
 import os
 import os.path
 
@@ -22,13 +23,16 @@ class Crawler(threading.Thread):
 
 
 class LibraryScanner:
-    def __init__(self):
+    def __init__(self, libraryref, scansettings):
         self.stopping = False
-        pass
+        self.libref = libraryref
+        self.scansettings = scansettings
 
     def startScan(self):
+        #Spin off a crawl processes for each
+        print("SCAN START")
         self.stopping = False
-        pass
+
 
     def stopScan(self):
         self.stopping = True

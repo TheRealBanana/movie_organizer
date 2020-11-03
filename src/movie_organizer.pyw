@@ -1,4 +1,4 @@
-from PyQt5 import QtCore, QtWidgets
+from PyQt5 import QtWidgets
 from PyQt5.QtCore import pyqtSignal
 from logic.UiFunctions import UIFunctions
 from dialogs.MainWindow import Ui_MainWindow

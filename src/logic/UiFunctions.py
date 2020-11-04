@@ -2,7 +2,7 @@ from PyQt5 import QtWidgets, QtCore
 from .movie_library import MovieLibrary
 from .library_scanner import LibraryScanner
 from .options_dialog_functions import OptionsDialogFunctions
-from src.dialogs.options_dialog import Ui_OptionsDialog
+from dialogs.options_dialog import Ui_OptionsDialog
 
 
 def qstringFixer(self, value):
@@ -20,11 +20,11 @@ def qtypeFixer(value):
     elif type(value) == QtCore.QMetaType.QVariantMap:
         fixeddict = {}
         value = value.toPyObject()
-        for key, val in value.iteritems():
+        for key, val in value.items():
             #fix sub-dicts
             if isinstance(val, dict):
                 subdict = {}
-                for key2, val2 in val.iteritems():
+                for key2, val2 in val.items():
                     subdict[str(key2)] = qtypeFixer(val2)
                 val = subdict
             fixeddict[str(key)] = val
@@ -53,6 +53,10 @@ class UIFunctions:
                 self.settings[option] = qtypeFixer(qs.value(option))
         else:
             self.settings = {"threads": 1, "library": []}
+        # Temporary fix for QTBUG-51237
+        if self.settings["library"] is None:
+            self.settings["library"] = []
+
         return self.settings
 
     def saveSettings(self):
@@ -77,9 +81,9 @@ class UIFunctions:
 
     def startLibraryScan(self):
         #Make a progress dialog and stuff
-        scansettings = {}
-        ls = LibraryScanner(self.movieLibrary, scansettings)
-        ls.startScan()
+        self.ls = LibraryScanner(self.movieLibrary, self.settings)
+        self.ls.startScan()
+        print("AFTERSTART")
 
     def quitApp(self):
         self.saveSettings()

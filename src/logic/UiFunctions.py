@@ -39,10 +39,12 @@ class UIFunctions:
         #initialize our application
         self.setupConnections()
         self.settings = self.loadSettings()
+        self.loadLibraryIntoGui()
 
     def setupConnections(self):
         self.uiref.actionScan_Media_Collection.triggered.connect(self.startLibraryScan)
         self.uiref.actionSettings.triggered.connect(self.openOptionsDialog)
+        self.uiref.movieLibraryList.currentItemChanged.connect(self.updateLibraryDisplay)
 
     def loadSettings(self):
         self.settings = {}
@@ -67,6 +69,37 @@ class UIFunctions:
         qs.endGroup()
         #qs.sync #shouldnt be needed
 
+    def loadLibraryIntoGui(self):
+        print("LOAD")
+        r = self.movieLibrary.getFullDatabase()
+        keys = list(r.keys())
+        keys.sort()
+        for k in keys:
+            d = r[k]
+            listitem = QtWidgets.QListWidgetItem(d[0])
+            listitem.setData(QtCore.Qt.UserRole, d)
+            listitem.setToolTip(d[7])
+            self.uiref.movieLibraryList.addItem(listitem)
+
+    def updateLibraryDisplay(self, newitem, olditem):
+        print("CHANGED")
+        data = newitem.data(QtCore.Qt.UserRole)
+        title = newitem.text()
+        path = newitem.toolTip()
+        displaytext = """SELECTED_MOVIE_DATA: 
+
+TITLE:
+%s
+
+PATH:
+%s
+
+FULL_DATA:
+%s
+      
+""" % (title, path, str(data))
+        self.uiref.movieInfoDisplay.setText(displaytext)
+
     def openOptionsDialog(self):
         dialog = QtWidgets.QDialog(self.MainWindow)
         ui = Ui_OptionsDialog()
@@ -82,6 +115,7 @@ class UIFunctions:
     def startLibraryScan(self):
         #Make a progress dialog and stuff
         self.ls = LibraryScanner(self.movieLibrary, self.settings)
+        self.ls.updateDisplayRequested.connect(self.loadLibraryIntoGui)
         self.ls.startScan()
         print("AFTERSTART")
 

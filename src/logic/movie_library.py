@@ -2,6 +2,7 @@ import sqlite3
 import os
 import os.path
 from collections import OrderedDict as OD
+from PyQt5.QtCore import QObject, pyqtSignal
 
 DATABASE_PATH = "./movielibrary.db"
 
@@ -40,7 +41,7 @@ class getDbCursor(object):
 class MovieLibrary:
     def __init__(self, DBPATH=DATABASE_PATH):
         self.dbmutex = False
-        self.librarydict = None
+        self.librarydict = {}
         self.dbpath = DBPATH
         self.checkForLyricsDb()
 
@@ -83,26 +84,35 @@ class MovieLibrary:
     @checkDbOpen
     def addMovie(self, moviedata):
         if not self.checkForTitle(moviedata["title"]):
-            with getDbCursor(self.dbpath, self.dbmutex) as dbcursor:
+            with getDbCursor(self.dbpath, self.dbmutex, "w") as dbcursor:
                 # Using dict unpacking with an asterisk ONLY WORKS WITH ORDERED DICTS!
                 # If you use a normal dictionary it will add the values in the incorrect order.
                 # With normal dicts we have to specify each value separately (which is a lot of bleh code).
                 checktype(moviedata)
-                dbcursor.execute("INSERT INTO movie_data VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", *moviedata)
+                dbcursor.execute("INSERT INTO movie_data VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", (*moviedata.values(),))
                 self.librarydict[moviedata["title"]] = moviedata
 
     @checkDbOpen
     def delMovie(self, movietitle):
         if self.checkForTitle(movietitle):
-            with getDbCursor(self.dbpath, self.dbmutex) as dbcursor:
-                dbcursor.execute("DELETE FROM movie_data WHERE title=?", movietitle)
+            with getDbCursor(self.dbpath, self.dbmutex, "w") as dbcursor:
+                dbcursor.execute("DELETE FROM movie_data WHERE title=?", (movietitle,))
             del(self.librarydict[movietitle])
 
     @checkDbOpen
     def checkForTitle(self, movietitle):
         with getDbCursor(self.dbpath, self.dbmutex) as dbcursor:
-            data = dbcursor.execute("SELECT COUNT(1) FROM movie_data WHERE title=?", movietitle).fetchone()
+            data = dbcursor.execute("SELECT COUNT(1) FROM movie_data WHERE title=?", (movietitle,)).fetchone()
         return bool(data[0])
+
+    @checkDbOpen
+    def getFullDatabase(self):
+        with getDbCursor(self.dbpath, self.dbmutex) as dbcursor:
+            alldata = dbcursor.execute("SELECT * FROM movie_data").fetchall()
+        returndata = {}
+        for d in alldata:
+            returndata[d[0]] = d
+        return returndata
 
 
     def _SEARCH(self): pass #TODO

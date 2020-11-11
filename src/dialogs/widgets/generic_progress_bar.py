@@ -56,7 +56,6 @@ class genericProgressDialog(QtWidgets.QDialog):
         self.setWindowTitle("Dialog")
         self.progressLabel.setText("_STATUS_TEXT_")
         self.cancelButton.setText("Cancel")
-        self.cancelButton.clicked.connect(self.close)
         QtCore.QMetaObject.connectSlotsByName(self)
 
     def closeEvent(self, QCloseEvent):

@@ -6,7 +6,11 @@ from dialogs.widgets.generic_progress_bar import genericProgressDialog
 import re
 import os
 import os.path
+from PyQt5.Qt import QApplication
 
+from time import sleep
+
+import traceback
 IGNORE_FOLDERS = ["ZZZZZZZZZZZZZZZZ"]
 
 VIDEO_EXTENSIONS=["avi", "divx", "amv", "mpg", "mpeg", "mpe", "m1v", "m2v",
@@ -16,46 +20,110 @@ VIDEO_EXTENSIONS=["avi", "divx", "amv", "mpg", "mpeg", "mpe", "m1v", "m2v",
                   "mkv", "webm", "ogm", "ogv", "flv", "f4v", "wmv", "rmvb",
                   "rm", "dv"]
 
+def is_video_file(filename):
+    fileextensionreg = re.match("^.*?\.([a-z0-9]{1,6})$", filename, re.IGNORECASE)
+    if fileextensionreg is not None:
+        fext = fileextensionreg.group(1)
+        if fext in VIDEO_EXTENSIONS:
+            # Ignore sample videos and TV shows
+            if not re.match("(^.*?sample\.([a-z0-9]{1,6})$|^sample.*$)", fext, re.IGNORECASE) and \
+               not re.search("(((s|e)[0-9]{1,2}){2}|[0-9]{1,2}x[0-9]{1,2})", fext, re.IGNORECASE):
+                    return True
+    return False
+
+class imdbInfoGrabber(QObject):
+    newTitleData = pyqtSignal(dict)
+    workFinished = pyqtSignal()
+
+    def __init__(self, filedata, ithread, parent=None):
+        super(imdbInfoGrabber, self).__init__(parent)
+        self.setObjectName("Crawler-%s" % ithread.currentThreadId())
+        self.filedata = filedata
+        self.ithread = ithread
+        self.stopping = False
+
+    def stopt(self):
+        self.stopping = True
+        #Normally this would risk double emiting workFinished which causes all sorts of weird issues
+        #We get away with this because its our only thread and we can do special things to mitigate the issue.
+        self.workFinished.emit()
+
+    def getInfo(self):
+        #TODO DELETEME
+        p = 0
+        while p < 120:
+            if self.stopping:
+                return
+            sleep(0.25)
+            QApplication.processEvents()
+            p += 1
+
+        for tld, files in self.filedata.items():
+            if self.stopping:
+                return
+            self.newTitleData.emit(files[0])
+        self.workFinished.emit()
+
+
+
+#Job of the Crawler is just to discover filenames and nothing more
+#We will get IMDB info using a separate process
 class Crawler(QObject):
-    foundNewFile = pyqtSignal(dict)
-    fileCountUpdate = pyqtSignal(int)
+    foundNewFiles = pyqtSignal(dict)
     workFinished = pyqtSignal(QVariant)
 
-    def __init__(self, startpath, searchparams, thread, parent=None):
+    def __init__(self, startpath, ithread, parent=None):
         super(Crawler, self).__init__(parent)
-        self.thread = thread
+        self.setObjectName("Crawler-%s" % ithread.currentThreadId())
+        self.ithread = ithread
         self.startpath = startpath
-        self.searchparams = searchparams
-        self.stopthread = False
+        self.stopping = False
 
-    def crawl(self, dir):
-        allfiles = os.listdir(dir)
-        #dirs = [d for d in allfiles if os.path.isdir(os.path.join(dir, d)) is True]
-        dirs = [d for d in allfiles if os.path.isdir(os.path.join(dir, d)) is True and
-                not re.search("s[0-9]{2}", d, re.IGNORECASE)] #No TV shows dammit
+    def stopt(self):
+        self.stopping = True
+        #self.workFinished.emit(self)
+
+    def crawl(self, directory):
+        if self.stopping is True: return None
+
+        allfiles = os.listdir(directory)
+        #List comprehension looks cool but prevents us from canceling mid-search
+        #dirs = [d for d in allfiles if os.path.isdir(os.path.join(directory, d)) is True]
+        #dirs = [d for d in allfiles if os.path.isdir(os.path.join(directory, d)) is True and
+        #        not re.search("s[0-9]{2}", d, re.IGNORECASE)] #No TV shows dammit
+        dirs = []
+        for d in allfiles:
+            if self.stopping is True:
+                return None
+            if os.path.isdir(os.path.join(directory, d)) is True and not re.search("s[0-9]{2}", d, re.IGNORECASE):
+                dirs.append(d)
         #Remove excluded dirs
         for d in dirs:
+            if self.stopping is True: return None
             for x in IGNORE_FOLDERS:
+                if self.stopping is True: return None
+
                 if re.search(x, d, re.IGNORECASE):
                     dirs.remove(d)
                     print("REMOVED: %s" % d)
-        #Now that we're down to the bottom of the dir chain, we work our way back through the files
-        #files = [f for f in allfiles if os.path.isfile(os.path.join(dir, f)) is True]
-        files = [f for f in allfiles if os.path.isfile(os.path.join(dir, f)) is True and
-                 re.match("^.*?\.[a-z0-9]{1,6}$", f, re.IGNORECASE) and # Does it have an extension?
-                 re.match("^.*?\.([a-z0-9]{1,6})$", f, re.IGNORECASE).group(1) in VIDEO_EXTENSIONS and # Is it a video extension?
-                 not re.match("(^.*?sample\.([a-z0-9]{1,6})$|^sample.*$)", f, re.IGNORECASE) and # And its not a sample video?
-                 not re.search("(((s|e)[0-9]{1,2}){2}|[0-9]{1,2}x[0-9]{1,2})", f, re.IGNORECASE)] # And we're pretty sure its not a TV show
 
-        #Update progress bar with number of discovered files
-        self.fileCountUpdate.emit(len(files))
+        # Now that we're down to the bottom of the dir chain, we work our way back through the files
+        #files = [f for f in allfiles if os.path.isfile(os.path.join(directory, f)) is True]
+        #files = [f for f in allfiles if os.path.isfile(os.path.join(directory, f)) is True and is_video_file(f) is True]
+        #files = {f:directory for f in allfiles if os.path.isfile(os.path.join(directory, f)) is True and is_video_file(f) is True}
+        files = {}
+        for f in allfiles:
+            if self.stopping is True: return None
+            if os.path.isfile(os.path.join(directory, f)) is True and is_video_file(f) is True:
+                files[f] = directory
+        # Send out the files we found here
+        if len(files) > 0:
+            self.foundNewFiles.emit({"files": files, "directory": self.startpath})
 
-        # Scan the dirs first, then the files
+        # find more files
         for d in dirs:
-            self.crawl(os.path.join(dir, d))
-
-        for f in files:
-            self.foundNewFile.emit({"filename": f, "dir": dir})
+            if self.stopping is True: return None
+            self.crawl(os.path.join(directory, d))
 
     def doWork(self):
         self.crawl(os.path.realpath(self.startpath))
@@ -69,12 +137,15 @@ class LibraryScanner(QObject):
 
     def __init__(self, libraryref, scansettings):
         super(LibraryScanner, self).__init__()
+        self.setObjectName("LibraryScanner")
         self.stopping = False
         self.libref = libraryref
         self.scansettings = scansettings
-        self.activethreads = []
+        self.activecrawlerthreads = []
+        self.imdbworker = None
         self.folderstoscan = scansettings["library"].copy()
         self.filecount = -1
+        self.filelist = {}
         self.progressbar = None
 
     def startScan(self):
@@ -87,36 +158,36 @@ class LibraryScanner(QObject):
         print("-----------")
         self.stopping = False
         self.filecount = 0
+        self.filelist = {}
         #Create our progress bar
         self.progressbar = genericProgressDialog()
         self.progressbar.setModal(True)
         self.progressbar.setWindowTitle("Discovering files...")
-        #Busy mode
-        self.progressbar.progressBar.setMaximum(0)
+        self.progressbar.cancelButton.clicked.connect(self.stopScan)
+        self.progressbar.progressBar.setMaximum(len(self.scansettings["library"]))
         self.progressbar.progressBar.setMinimum(0)
         self.progressbar.progressBar.setValue(0)
         self.progressbar.progressLabel.setText("Found 0 Media Files")
         self.progressbar.show()
-        self.spawnThreads()
+        self.spawnCrawlerThreads()
 
-    def spawnThreads(self):
+    def spawnCrawlerThreads(self):
         # Keep going until all folders have been scanned and all threads have joined
-        while len(self.activethreads) < int(self.scansettings["threads"]) and len(self.folderstoscan) > 0:
+        while len(self.activecrawlerthreads) < int(self.scansettings["threads"]) and len(self.folderstoscan) > 0:
             newthread = QThread()
             newthread.setTerminationEnabled(True) # Can't find documentation on what the default is or how to check what its currently set to.
             folder = self.folderstoscan.pop(-1)
-            c = Crawler(folder, searchparams=None, thread=newthread)
+            #c = Crawler(folder, searchparams=None, thread=newthread)
+            c = Crawler(folder, newthread)
             c.moveToThread(newthread)
             newthread.started.connect(c.doWork)
-            c.workFinished.connect(self.workFinishedCallback)
-            c.foundNewFile.connect(self.newFileCallback)
-            c.fileCountUpdate.connect(self.totalFileCountUpdate)
+            c.workFinished.connect(self.crawlerWorkFinishedCallback)
+            c.foundNewFiles.connect(self.newFileCallback)
             newthread.start()
             print("New thread %s" % folder)
-            self.activethreads.append(c)
+            self.activecrawlerthreads.append(c)
 
-    #This one is used to update the % progress
-    def nextUpdateProgress(self):
+    def updateImdbThreadProgress(self):
         oldlabel = str(self.progressbar.progressLabel.text())
         print("O: %s" % oldlabel)
         nextidx = float(oldlabel[1:oldlabel.index("%")]) + 1
@@ -124,33 +195,36 @@ class LibraryScanner(QObject):
         progresslabel = "[%.1f%%] %s titles added to database... " % (perc, nextidx)
         self.progressbar.progressLabel.setText(progresslabel)
 
-    def updateProgress(self):
-        #Couldnt think of a good way to do this without rewriting a bunch of stuff so here we go
-        self.progressbar.progressBar.setMaximum(self.filecount)
-        self.progressbar.progressBar.setValue(0)
-        self.progressbar.setWindowTitle("Retrieving IMDB information for found titles...")
-        progresslabel = "[%.1f%%] %s titles added to database... " % (0.0, 0)
-        self.progressbar.progressLabel.setText(progresslabel)
-        self.updateProgress = self.nextUpdateProgress
-
-
 
     def totalFileCountUpdate(self, filecount):
         #User to track total files
         self.filecount += filecount
         self.progressbar.progressLabel.setText("Found %s Media Files..." % self.filecount)
 
-    def workFinishedCallback(self, c):
+    def crawlerWorkFinishedCallback(self, c):
         #Terminate the thread and pop it from our thread list
-        c.thread.terminate()
-        c.thread.wait()
-        self.activethreads.remove(c)
+        c.ithread.quit()
+        c.ithread.wait()
+        self.activecrawlerthreads.remove(c)
+        if self.stopping is True:
+            return
         if len(self.folderstoscan) > 0:
-            self.spawnThreads()
-        elif len(self.activethreads) == 0:
-            self.updateDisplayRequested.emit()
+            self.spawnCrawlerThreads()
+        # FINISHED OUR SCAN
+        elif len(self.activecrawlerthreads) == 0:
+            self.startImdbInfoGrab()
+        self.progressbar.progressBar.setValue(self.progressbar.progressBar.value()+1)
 
     def newFileCallback(self, filedata):
+        #filedata[files] = {filename: fulldirpath}
+        tld = filedata["directory"]
+        if tld not in self.filelist:
+            self.filelist[tld] = []
+        self.filelist[tld].append(filedata["files"])
+        self.totalFileCountUpdate(len(filedata["files"]))
+        #Just update count
+        pass
+        """
         #Add to database, For now we won't worry about the other data.
         dbdata = OD()
         dbdata["title"] = filedata["filename"]
@@ -160,14 +234,54 @@ class LibraryScanner(QObject):
         dbdata["genre"] = ""
         dbdata["playcount"] = 1
         dbdata["lastplay"] = ""
-        dbdata["filelocation"] = filedata["dir"]
+        dbdata["filelocation"] = filedata["directory"]
         dbdata["imdb_id"] = ""
         dbdata["rating"] = 0
         dbdata["extra1"] = ""
         dbdata["extra2"] = ""
         self.libref.addMovie(dbdata)
-        self.updateProgress()
+        self.updateImdbThreadProgress()
         #print("Added %s to the database" % filedata)
+        """
+
+    def startImdbInfoGrab(self):
+        if self.imdbworker is not None:
+            self.imdbThreadFinishedCallback()
+        #Create our worker and qthread
+        ithread = QThread()
+        self.imdbworker = imdbInfoGrabber(self.filelist, ithread)
+        ithread.started.connect(self.imdbworker.getInfo)
+        self.imdbworker.newTitleData.connect(self.imdbThreadUpdateCallback)
+        self.imdbworker.workFinished.connect(self.imdbThreadFinishedCallback)
+        #ithread.finished.connect(self.imdbThreadFinishedCallback)
+        self.imdbworker.moveToThread(ithread)
+        ithread.start()
+        #self.updateDisplayRequested.emit()
+        #Set up the progress bar for the next step
+        self.progressbar.progressBar.setMaximum(self.filecount)
+        self.progressbar.progressBar.setValue(0)
+        self.progressbar.setWindowTitle("Retrieving IMDB information for found titles...")
+        progresslabel = "[%.1f%%] %s titles added to database... " % (0.0, 0)
+        self.progressbar.progressLabel.setText(progresslabel)
+
+    def imdbThreadUpdateCallback(self, newfiledata):
+        print("imdbThreadUpdateCallback")
+        print(type(newfiledata))
+        print(len(newfiledata))
+        #print(newfiledata.keys())
+        #print(newfiledata.values())
+        #self.updateImdbThreadProgress()
+
+    def imdbThreadFinishedCallback(self):
+        self.imdbworker.stopping = True
+        self.imdbworker.ithread.quit()
+        self.imdbworker.ithread.wait()
+        self.imdbworker = None
 
     def stopScan(self):
         self.stopping = True
+        for c in self.activecrawlerthreads:
+            c.stopt()
+        if self.imdbworker is not None:
+            self.imdbworker.stopt()
+        self.progressbar.close()

@@ -67,7 +67,7 @@ class UIFunctions:
         for optionname, value in self.settings.items():
             qs.setValue(optionname, value)
         qs.endGroup()
-        #qs.sync #shouldnt be needed
+        #qs.sync #shouldnt be needed:
 
     def loadLibraryIntoGui(self):
         print("LOAD")
@@ -75,24 +75,6 @@ class UIFunctions:
         keys = list(r.keys())
         keys.sort()
         for k in keys:
-            #0,dbdata["title"]
-            #1,dbdata["directors"]
-            #2,dbdata["writers"]
-            #3,dbdata["producers"]
-            #4,dbdata["actors"]
-            #5,dbdata["composers"]
-            #6,dbdata["genres"]
-            #7,dbdata["runtime"]
-            #8,dbdata["coverurl"]
-            #9,dbdata["playcount"]
-            #10,dbdata["lastplay"]
-            #11,dbdata["filelocation"]
-            #12,dbdata["imdb_id"]
-            #13,dbdata["imdb_rating"]
-            #14,dbdata["rating"]
-            #15,dbdata["extra1"]
-            #16,dbdata["extra2"]
-
             d = r[k]
             listitem = QtWidgets.QListWidgetItem(d[0])
             listitem.setData(QtCore.Qt.UserRole, d)

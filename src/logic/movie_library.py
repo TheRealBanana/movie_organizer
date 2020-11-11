@@ -142,9 +142,7 @@ class MovieLibrary:
                 if isinstance(s, str) and s[0:2] == "b'":
                     s = pickle.loads(literal_eval(s))
                 newd.append(s)
-
             returndata[d[0]] = newd
-
         return returndata
 
 

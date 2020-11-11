@@ -3,6 +3,8 @@ import os
 import os.path
 from collections import OrderedDict as OD
 from PyQt5.QtCore import QObject, pyqtSignal
+import pickle
+from ast import literal_eval
 
 DATABASE_PATH = "./movielibrary.db"
 
@@ -66,14 +68,19 @@ class MovieLibrary:
                 #Lyrics table
                 dbcursor.execute("CREATE TABLE movie_data ("
                                  "title TEXT NOT NULL PRIMARY KEY,"
-                                 "director TEXT,"
-                                 "writer TEXT,"
-                                 "producer TEXT,"
-                                 "genre TEXT,"
+                                 "directors TEXT,"
+                                 "writers TEXT,"
+                                 "producers TEXT,"
+                                 "actors TEXT,"
+                                 "composers TEXT,"
+                                 "genres TEXT,"
+                                 "runtime INTEGER,"
+                                 "cover_url TEXT,"
                                  "playcount INTEGER,"
                                  "lastplay TEXT,"
                                  "filelocation TEXT,"
                                  "imdb_id TEXT,"
+                                 "imdb_rating TEXT,"
                                  "rating INTEGER,"
                                  "extra1 TEXT,"
                                  "extra2 TEXT"
@@ -89,7 +96,26 @@ class MovieLibrary:
                 # If you use a normal dictionary it will add the values in the incorrect order.
                 # With normal dicts we have to specify each value separately (which is a lot of bleh code).
                 checktype(moviedata)
-                dbcursor.execute("INSERT INTO movie_data VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", (*moviedata.values(),))
+                #dbcursor.execute("INSERT INTO movie_data VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (*moviedata.values(),))
+                dbcursor.execute("INSERT INTO movie_data VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                                 (moviedata["title"],
+                                  str(moviedata["directors"]),
+                                  str(moviedata["writers"]),
+                                  str(moviedata["producers"]),
+                                  str(moviedata["actors"]),
+                                  str(moviedata["composers"]),
+                                  str(moviedata["genres"]),
+                                  moviedata["runtime"],
+                                  moviedata["coverurl"],
+                                  moviedata["playcount"],
+                                  moviedata["lastplay"],
+                                  moviedata["filelocation"],
+                                  moviedata["imdb_id"],
+                                  moviedata["imdb_rating"],
+                                  moviedata["rating"],
+                                  moviedata["extra1"],
+                                  moviedata["extra2"]))
+
                 self.librarydict[moviedata["title"]] = moviedata
 
     @checkDbOpen
@@ -111,7 +137,14 @@ class MovieLibrary:
             alldata = dbcursor.execute("SELECT * FROM movie_data").fetchall()
         returndata = {}
         for d in alldata:
-            returndata[d[0]] = d
+            newd = []
+            for s in d:
+                if isinstance(s, str) and s[0:2] == "b'":
+                    s = pickle.loads(literal_eval(s))
+                newd.append(s)
+
+            returndata[d[0]] = newd
+
         return returndata
 
 

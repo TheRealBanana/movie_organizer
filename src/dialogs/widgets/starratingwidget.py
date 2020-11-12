@@ -95,6 +95,7 @@ class starRatingWidget(QtWidgets.QWidget):
         self.ratingStar_5.setFlat(True)
         self.ratingStar_5.setObjectName("ratingStar_5")
         self.horizontalLayout.addWidget(self.ratingStar_5)
+        self.starlist = [self.ratingStar_1, self.ratingStar_2, self.ratingStar_3, self.ratingStar_4, self.ratingStar_5]
         #Connect slots
         self.ratingStar_1.starClicked.connect(self.starClickedUpdate)
         self.ratingStar_2.starClicked.connect(self.starClickedUpdate)
@@ -104,9 +105,9 @@ class starRatingWidget(QtWidgets.QWidget):
 
     def starClickedUpdate(self, staridx):
         #Turn all stars before this to yellow
-        for y in range(1, staridx+1):
-            self.findChild(StarButton, "ratingStar_%d" % y).setIcon(self.yellowStar)
+        for s in self.starlist[:staridx]:
+            s.setIcon(self.yellowStar)
         #and all stars after to grey
-        for a in range(staridx+1, 6):
-            self.findChild(StarButton, "ratingStar_%d" % a).setIcon(self.greyStar)
+        for s in self.starlist[staridx:]:
+            s.setIcon(self.greyStar)
 

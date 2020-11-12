@@ -57,6 +57,7 @@ def get_person_names(personlist):
 class imdbInfoGrabber(QObject):
     newTitleData = pyqtSignal(dict)
     workFinished = pyqtSignal()
+    progressUpdate = pyqtSignal(str)
 
     def __init__(self, filedata, ithread, parent=None):
         super(imdbInfoGrabber, self).__init__(parent)
@@ -82,19 +83,19 @@ class imdbInfoGrabber(QObject):
         ia = imdb.IMDb()
         #self.filedata[tld] = [ [filename, foldername], ...]
         for tld, files in self.filedata.items():
+            self.progressUpdate.emit("Checking TLD: %s" % tld)
             if self.stopping: return
 
             for finfo in files:
                 fname = finfo[0]
                 fpath = finfo[1]
+                self.progressUpdate.emit("Checking if file is a movie: %s" % fname)
                 freg = movie_title_regex.search(fname)
                 if freg is not None:
                     movietitle = freg.group(1).replace(".", " ") # Periods mess things up
                     movieyear = freg.group(2)
-                    print(freg.groups())
+                    self.progressUpdate.emit("Searching IMDb for '%s %s'" % (movietitle, movieyear))
                     searchdata = ia.search_movie("%s %s" % (movietitle, movieyear))
-                    print(type(searchdata))
-                    print(type(searchdata[0]))
                     #Try and find the one that has a matching year, best we can do to be sure
                     mid = None
                     for result in searchdata:
@@ -103,8 +104,10 @@ class imdbInfoGrabber(QObject):
                         # Sometimes the wrong results are still only a year difference. Just hope the first result is ours. :/
                         if abs(int(result.data["year"]) - int(movieyear)) <= 2:
                             mid = result.movieID
+                            self.progressUpdate.emit("Found IMDb ID for %s:  %s" % (movietitle, mid))
                             break
                     if mid is not None: # Only check first result and pray
+                        self.progressUpdate.emit("Found good IMDb data for %s" % fname)
                         movie_data = ia.get_movie(mid).data
                         #Build up our dictionary to emit
                         dbdata = OD()
@@ -128,10 +131,12 @@ class imdbInfoGrabber(QObject):
                         dbdata["extra2"] = ""
                         self.newTitleData.emit(dbdata)
                     else:
+                        self.progressUpdate.emit("Didn't pass year check for %s" % fname)
                         print(type(searchdata[0]))
                 else:
-                    print("Encountered error with title: ")
-                    print(fname)
+                    e = "Encountered error with title:  %s" % fname
+                    self.progressUpdate.emit(e)
+                    print(e)
             #self.newTitleData.emit(files[0])
         self.workFinished.emit()
 
@@ -142,6 +147,7 @@ class imdbInfoGrabber(QObject):
 class Crawler(QObject):
     foundNewFiles = pyqtSignal(dict)
     workFinished = pyqtSignal(QVariant)
+    progressUpdate = pyqtSignal(str)
 
     def __init__(self, startpath, ithread, parent=None):
         super(Crawler, self).__init__(parent)
@@ -166,7 +172,8 @@ class Crawler(QObject):
         for d in allfiles:
             if self.stopping is True:
                 return None
-            if os.path.isdir(os.path.join(directory, d)) is True and not re.search("s[0-9]{2}", d, re.IGNORECASE):
+            if os.path.isdir(os.path.join(directory, d)) is True and not re.search("s[0-9]{2}", d, re.IGNORECASE): #ignore tv shows
+                self.progressUpdate.emit("Found directory: %s" % d)
                 dirs.append(d)
         #Remove excluded dirs
         for d in dirs:
@@ -176,6 +183,7 @@ class Crawler(QObject):
 
                 if re.search(x, d, re.IGNORECASE):
                     dirs.remove(d)
+                    self.progressUpdate.emit("Excluded directory: %s" % d)
                     print("REMOVED: %s" % d)
 
         # Now that we're down to the bottom of the dir chain, we work our way back through the files
@@ -185,7 +193,10 @@ class Crawler(QObject):
         files = []
         for f in allfiles:
             if self.stopping is True: return None
+
+            #self.progressUpdate.emit("Checking if file is a video:  %s" % f)
             if os.path.isfile(os.path.join(directory, f)) is True and is_video_file(f) is True:
+                self.progressUpdate.emit("Found video file:  %s" % f)
                 files.append((f, directory))
         # Send out the files we found here
         if len(files) > 0:
@@ -194,6 +205,7 @@ class Crawler(QObject):
         # find more files
         for d in dirs:
             if self.stopping is True: return None
+            self.progressUpdate.emit("Crawling to next sub-directory: %s" % d)
             self.crawl(os.path.join(directory, d))
 
     def doWork(self):
@@ -232,8 +244,6 @@ class LibraryScanner(QObject):
         self.filelist = {}
         #Create our progress bar
         self.progressbar = genericProgressDialog()
-        self.progressbar.setModal(True)
-        self.progressbar.setWindowTitle("Discovering files...")
         self.progressbar.cancelButton.clicked.connect(self.stopScan)
         self.progressbar.progressBar.setMaximum(len(self.scansettings["library"]))
         self.progressbar.progressBar.setMinimum(0)
@@ -255,9 +265,13 @@ class LibraryScanner(QObject):
             newthread.started.connect(c.doWork)
             c.workFinished.connect(self.crawlerWorkFinishedCallback)
             c.foundNewFiles.connect(self.newFileCallback)
+            c.progressUpdate.connect(self.updateProgressbarDetails)
             newthread.start()
             print("New thread %s" % folder)
             self.activecrawlerthreads.append(c)
+
+    def updateProgressbarDetails(self, s):
+        self.progressbar.updateDetailsText(s)
 
     def updateImdbProgressBar(self):
         oldlabel = str(self.progressbar.progressLabel.text())
@@ -309,6 +323,7 @@ class LibraryScanner(QObject):
         ithread.started.connect(self.imdbworker.getInfo)
         self.imdbworker.newTitleData.connect(self.imdbThreadUpdateCallback)
         self.imdbworker.workFinished.connect(self.imdbThreadFinishedCallback)
+        self.imdbworker.progressUpdate.connect(self.updateProgressbarDetails)
         #ithread.finished.connect(self.imdbThreadFinishedCallback)
         self.imdbworker.moveToThread(ithread)
         ithread.start()

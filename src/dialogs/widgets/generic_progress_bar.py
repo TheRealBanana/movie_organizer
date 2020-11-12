@@ -1,12 +1,17 @@
 from PyQt5 import QtCore, QtWidgets
 
 
+#Too many lines of detail in the progressbar will crash the app. You have been warned.
+MAX_SCROLL_LINES = 100000
+
 class genericProgressDialog(QtWidgets.QDialog):
     closableDialogClosing = QtCore.pyqtSignal()
     def __init__(self, parent=None):
         super(genericProgressDialog, self).__init__(parent)
         self.setObjectName("genericProgressDialog")
-        self.resize(450, 123)
+        self.resize(500, 123)
+        self.setModal(True)
+        self.setWindowTitle("Discovering files...")
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -53,11 +58,84 @@ class genericProgressDialog(QtWidgets.QDialog):
         spacerItem1 = QtWidgets.QSpacerItem(50, 20, QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Minimum)
         self.horizontalLayout.addItem(spacerItem1)
         self.verticalLayout.addWidget(self.centeredCancelButton)
-        self.setWindowTitle("Dialog")
-        self.progressLabel.setText("_STATUS_TEXT_")
         self.cancelButton.setText("Cancel")
         QtCore.QMetaObject.connectSlotsByName(self)
+        #For details pullout. Won't add to layout until details button is pressed.
+        self.detailsButton = QtWidgets.QPushButton(self.centeredCancelButton)
+        self.detailsButton.setText("Details >>")
+        self.detailsButton.setObjectName(u"detailsButton")
+        self.horizontalLayout.addWidget(self.detailsButton)
+        self.detailsButton.pressed.connect(self.detailsButtonPressed)
+        self.detailsTextOutput = None
+        self.showingDetails = False
 
-    def closeEvent(self, QCloseEvent):
+    def updateDetailsText(self, text):
+        #update only if showing details
+        if self.showingDetails is False:
+            return
+
+        #Preserve current scrollbar/cursor state
+        vscrollbar = self.detailsTextOutput.verticalScrollBar()
+        vscrollmax = vscrollbar.maximum()
+        vscrollval = vscrollbar.value()
+        cursor = self.detailsTextOutput.textCursor()
+        cursorstart = cursor.selectionStart()
+        cursorend = cursor.selectionEnd()
+
+        #Insert new text
+        cursor.movePosition(cursor.End)
+        cursor.insertText(text + "\n")
+
+        #Restore any selected text
+        if cursorstart != cursorend:
+            cursor.setPosition(cursorstart, cursor.MoveAnchor)
+            cursor.setPosition(cursorend, cursor.KeepAnchor)
+            self.detailsTextOutput.setTextCursor(cursor)
+
+        #If we were within 5 lines from the bottom, keep scrolling
+        if vscrollmax - vscrollval < 5:
+            newvscrollmax = self.detailsTextOutput.verticalScrollBar().maximum()
+            self.detailsTextOutput.verticalScrollBar().setSliderPosition(newvscrollmax)
+        elif vscrollval != 0:
+            vscrollbar.setSliderPosition(vscrollval)
+
+        #Just constantly keep scrolling to the bottom
+        #print("VMAX: %s" % self.detailsTextOutput.document().blockCount())
+        #self.detailsTextOutput.verticalScrollBar().setSliderPosition(self.detailsTextOutput.verticalScrollBar().maximum())
+
+        QtWidgets.QApplication.processEvents()
+
+
+    def detailsButtonPressed(self):
+        print("DETAILSBUTTON")
+        if self.showingDetails is False:
+            #Create our text browser for detailed output and add it to the vertical layout
+            self.detailsTextOutput = QtWidgets.QTextBrowser(self)
+            self.detailsTextOutput.setObjectName(u"detailsTextOutput")
+            self.detailsTextOutput.document().setMaximumBlockCount(MAX_SCROLL_LINES)
+            self.verticalLayout.addWidget(self.detailsTextOutput)
+            #Resize our progressbar dialog to accommodate the new widget
+            self.setMaximumSize(QtCore.QSize(16777215, 325))
+            self.resize(500, 325)
+            #Modify the details button to change things back
+            self.detailsButton.setText("Details <<")
+            self.showingDetails = True
+            QtWidgets.QApplication.processEvents()
+        else:
+            #Hide the details.
+            self.verticalLayout.removeWidget(self.detailsTextOutput)
+            self.detailsTextOutput.deleteLater()
+            self.setMaximumSize(QtCore.QSize(16777215, 123))
+            self.resize(500, 123)
+            #Reset the button
+            self.detailsButton.setText("Details >>")
+            self.showingDetails = False
+            QtWidgets.QApplication.processEvents()
+
+
+
+
+
+def closeEvent(self, QCloseEvent):
         self.closableDialogClosing.emit()
         QCloseEvent.accept()

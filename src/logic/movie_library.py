@@ -45,10 +45,10 @@ class MovieLibrary:
         self.dbmutex = False
         self.librarydict = {}
         self.dbpath = DBPATH
-        self.checkForLyricsDb()
+        self.checkForMoviesDb()
 
     @checkDbOpen
-    def checkForLyricsDb(self):
+    def checkForMoviesDb(self):
         #Now see if we have a database file and if not create a new one
         if os.access(self.dbpath, os.W_OK):
             with getDbCursor(self.dbpath, self.dbmutex) as dbcursor:
@@ -145,6 +145,33 @@ class MovieLibrary:
             returndata[d[0]] = newd
         return returndata
 
+    @checkDbOpen
+    def getGenreList(self):
+        tmplist = []
+        with getDbCursor(self.dbpath, self.dbmutex) as dbcursor:
+            data = dbcursor.execute("SELECT genres FROM movie_data").fetchall()
+            for d in data:
+                #Unpickle #TODO STOP USING PICKLE!
+                tmplist += pickle.loads(literal_eval(d[0]))
+        #Remove dupes. This works because dictionary keys must be unique
+        tmplist = list(dict.fromkeys(tmplist))
+        tmplist.sort()
+        return tmplist
 
-    def _SEARCH(self): pass #TODO
+    @checkDbOpen
+    def getFieldList(self):
+        with getDbCursor(self.dbpath, self.dbmutex) as dbcursor:
+            data = dbcursor.execute("PRAGMA table_info(movie_data)").fetchall()
+        fieldlist = []
+        for c in data:
+            fieldlist.append(c[1])
+        return fieldlist
+
+    def _SEARCH(self, searchparams):
+        #Search params:
+        #
+
+
+
+        pass #TODO
 

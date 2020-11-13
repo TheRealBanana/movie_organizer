@@ -3,7 +3,7 @@ from .movie_library import MovieLibrary
 from .library_scanner import LibraryScanner
 from .options_dialog_functions import OptionsDialogFunctions
 from dialogs.options_dialog import Ui_OptionsDialog
-
+from dialogs.widgets.searchParameterWidget import searchParameterWidget
 
 def qstringFixer(self, value):
     if isinstance(value, QtCore.QString):
@@ -45,6 +45,17 @@ class UIFunctions:
         self.uiref.actionScan_Media_Collection.triggered.connect(self.startLibraryScan)
         self.uiref.actionSettings.triggered.connect(self.openOptionsDialog)
         self.uiref.movieLibraryList.currentItemChanged.connect(self.updateLibraryDisplay)
+        self.uiref.newSearchParameterButton.clicked.connect(self.newSearchParameterButtonPressed)
+
+    def newSearchParameterButtonPressed(self):
+        #Create a new search parameter widget and connect it to our parametersFrame
+        newentrywidget = searchParameterWidget(self.movieLibrary.getFieldList(), parent=self.uiref.parametersFrame)
+        newentrywidget.removeSelfRequest.connect(self.deleteSearchParameterWidget)
+        self.uiref.parametersFrameVLayout.insertWidget(-1, newentrywidget)
+
+    def deleteSearchParameterWidget(self, w):
+        self.uiref.parametersFrameVLayout.removeWidget(w)
+        w.deleteLater()
 
     def loadSettings(self):
         self.settings = {}

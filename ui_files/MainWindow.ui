@@ -20,17 +20,17 @@
    <string>MainWindow</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <layout class="QGridLayout" name="gridLayout">
+   <layout class="QGridLayout" name="centralwidgetGridLayout">
     <item row="0" column="0">
      <widget class="QTabWidget" name="movieLibraryTab">
       <property name="currentIndex">
-       <number>0</number>
+       <number>1</number>
       </property>
       <widget class="QWidget" name="movieLibraryTab">
        <attribute name="title">
         <string>Movie Library</string>
        </attribute>
-       <layout class="QHBoxLayout" name="horizontalLayout">
+       <layout class="QHBoxLayout" name="movieLibraryTabHLayout">
         <item>
          <widget class="QListWidget" name="movieLibraryList"/>
         </item>
@@ -48,7 +48,7 @@
           <property name="frameShadow">
            <enum>QFrame::Raised</enum>
           </property>
-          <layout class="QVBoxLayout" name="verticalLayout">
+          <layout class="QVBoxLayout" name="movieLibraryInfoFrameVLayout">
            <item>
             <widget class="QTextBrowser" name="movieInfoDisplay"/>
            </item>
@@ -60,7 +60,7 @@
              <property name="frameShadow">
               <enum>QFrame::Raised</enum>
              </property>
-             <layout class="QHBoxLayout" name="horizontalLayout_2">
+             <layout class="QHBoxLayout" name="libraryStarRatingContainerFrameHLayout">
               <property name="spacing">
                <number>0</number>
               </property>
@@ -130,7 +130,7 @@
        <attribute name="title">
         <string>Search</string>
        </attribute>
-       <layout class="QGridLayout" name="gridLayout_3">
+       <layout class="QGridLayout" name="mainSearchTabGridLayout">
         <item row="0" column="0">
          <widget class="QTabWidget" name="searchTabWidget">
           <property name="currentIndex">
@@ -140,324 +140,146 @@
            <attribute name="title">
             <string>Search Options</string>
            </attribute>
-           <layout class="QGridLayout" name="gridLayout_4">
-            <item row="0" column="0" colspan="3">
-             <widget class="QFrame" name="parametersFrame">
+           <layout class="QVBoxLayout" name="searchParametersTabVLayout">
+            <item>
+             <widget class="QScrollArea" name="parametersFrame">
               <property name="sizePolicy">
-               <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+               <sizepolicy hsizetype="MinimumExpanding" vsizetype="Minimum">
                 <horstretch>0</horstretch>
                 <verstretch>0</verstretch>
                </sizepolicy>
               </property>
-              <property name="minimumSize">
-               <size>
-                <width>825</width>
-                <height>0</height>
-               </size>
-              </property>
               <property name="frameShape">
-               <enum>QFrame::StyledPanel</enum>
+               <enum>QFrame::Box</enum>
               </property>
               <property name="frameShadow">
                <enum>QFrame::Raised</enum>
               </property>
-              <layout class="QGridLayout" name="gridLayout_2">
-               <item row="2" column="1">
-                <widget class="QLabel" name="writerLabel">
-                 <property name="font">
-                  <font>
-                   <pointsize>12</pointsize>
-                  </font>
-                 </property>
-                 <property name="text">
-                  <string>Writer(s)</string>
-                 </property>
-                </widget>
-               </item>
-               <item row="0" column="2">
-                <spacer name="serachParamsMidSpacer">
-                 <property name="orientation">
-                  <enum>Qt::Horizontal</enum>
-                 </property>
-                 <property name="sizeType">
-                  <enum>QSizePolicy::Fixed</enum>
-                 </property>
-                 <property name="sizeHint" stdset="0">
-                  <size>
-                   <width>40</width>
-                   <height>20</height>
-                  </size>
-                 </property>
-                </spacer>
-               </item>
-               <item row="2" column="3">
-                <widget class="QLineEdit" name="writerEntry">
-                 <property name="minimumSize">
-                  <size>
-                   <width>0</width>
-                   <height>25</height>
-                  </size>
-                 </property>
-                 <property name="clearButtonEnabled">
-                  <bool>true</bool>
-                 </property>
-                </widget>
-               </item>
-               <item row="1" column="3">
-                <widget class="QLineEdit" name="directorEntry">
-                 <property name="minimumSize">
-                  <size>
-                   <width>0</width>
-                   <height>25</height>
-                  </size>
-                 </property>
-                 <property name="clearButtonEnabled">
-                  <bool>true</bool>
-                 </property>
-                </widget>
-               </item>
-               <item row="5" column="3">
-                <widget class="QLineEdit" name="genreEntry">
-                 <property name="sizePolicy">
-                  <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-                   <horstretch>0</horstretch>
-                   <verstretch>0</verstretch>
-                  </sizepolicy>
-                 </property>
-                 <property name="minimumSize">
-                  <size>
-                   <width>0</width>
-                   <height>25</height>
-                  </size>
-                 </property>
-                 <property name="font">
-                  <font>
-                   <pointsize>12</pointsize>
-                  </font>
-                 </property>
-                 <property name="clearButtonEnabled">
-                  <bool>true</bool>
-                 </property>
-                </widget>
-               </item>
-               <item row="4" column="3">
-                <widget class="starRatingWidget" name="searchStarRating" native="true">
-                 <property name="minimumSize">
-                  <size>
-                   <width>140</width>
-                   <height>28</height>
-                  </size>
-                 </property>
-                 <property name="maximumSize">
-                  <size>
-                   <width>140</width>
-                   <height>28</height>
-                  </size>
-                 </property>
-                </widget>
-               </item>
-               <item row="0" column="0">
-                <spacer name="serachParamsLeftSpacer">
-                 <property name="orientation">
-                  <enum>Qt::Horizontal</enum>
-                 </property>
-                 <property name="sizeType">
-                  <enum>QSizePolicy::Maximum</enum>
-                 </property>
-                 <property name="sizeHint" stdset="0">
-                  <size>
-                   <width>15</width>
-                   <height>20</height>
-                  </size>
-                 </property>
-                </spacer>
-               </item>
-               <item row="3" column="3">
-                <widget class="QLineEdit" name="producerEntry">
-                 <property name="minimumSize">
-                  <size>
-                   <width>0</width>
-                   <height>25</height>
-                  </size>
-                 </property>
-                 <property name="clearButtonEnabled">
-                  <bool>true</bool>
-                 </property>
-                </widget>
-               </item>
-               <item row="0" column="1">
-                <widget class="QLabel" name="movieTitleLabel">
-                 <property name="font">
-                  <font>
-                   <pointsize>12</pointsize>
-                  </font>
-                 </property>
-                 <property name="text">
-                  <string>Movie Title</string>
-                 </property>
-                </widget>
-               </item>
-               <item row="0" column="3">
-                <widget class="QLineEdit" name="movieTitleEntry">
-                 <property name="sizePolicy">
-                  <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-                   <horstretch>0</horstretch>
-                   <verstretch>0</verstretch>
-                  </sizepolicy>
-                 </property>
-                 <property name="minimumSize">
-                  <size>
-                   <width>0</width>
-                   <height>25</height>
-                  </size>
-                 </property>
-                 <property name="font">
-                  <font>
-                   <pointsize>12</pointsize>
-                  </font>
-                 </property>
-                 <property name="clearButtonEnabled">
-                  <bool>true</bool>
-                 </property>
-                </widget>
-               </item>
-               <item row="4" column="1">
-                <widget class="QLabel" name="searchStarRatingLabel">
-                 <property name="font">
-                  <font>
-                   <pointsize>12</pointsize>
-                  </font>
-                 </property>
-                 <property name="text">
-                  <string>Minimum Star Rating</string>
-                 </property>
-                </widget>
-               </item>
-               <item row="5" column="4">
-                <widget class="QComboBox" name="genreSelectionDropdown">
-                 <property name="minimumSize">
-                  <size>
-                   <width>0</width>
-                   <height>25</height>
-                  </size>
-                 </property>
-                 <property name="font">
-                  <font>
-                   <pointsize>10</pointsize>
-                  </font>
-                 </property>
-                 <property name="editable">
-                  <bool>false</bool>
-                 </property>
-                 <item>
-                  <property name="text">
-                   <string>TEST_1</string>
+              <property name="sizeAdjustPolicy">
+               <enum>QAbstractScrollArea::AdjustToContents</enum>
+              </property>
+              <property name="widgetResizable">
+               <bool>true</bool>
+              </property>
+              <widget class="QWidget" name="scrollAreaWidgetContents">
+               <property name="geometry">
+                <rect>
+                 <x>0</x>
+                 <y>0</y>
+                 <width>821</width>
+                 <height>43</height>
+                </rect>
+               </property>
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <layout class="QVBoxLayout" name="parametersFrameVLayout">
+                <property name="spacing">
+                 <number>0</number>
+                </property>
+                <property name="sizeConstraint">
+                 <enum>QLayout::SetMinimumSize</enum>
+                </property>
+                <item>
+                 <layout class="QHBoxLayout" name="newSearchParameterContainerHLayout">
+                  <property name="spacing">
+                   <number>0</number>
                   </property>
-                 </item>
-                 <item>
-                  <property name="text">
-                   <string>TEST_2</string>
+                  <property name="sizeConstraint">
+                   <enum>QLayout::SetFixedSize</enum>
                   </property>
-                 </item>
-                 <item>
-                  <property name="text">
-                   <string>TEST_3</string>
-                  </property>
-                 </item>
-                </widget>
-               </item>
-               <item row="0" column="4">
-                <spacer name="serachParamsRightSpacer">
-                 <property name="orientation">
-                  <enum>Qt::Horizontal</enum>
-                 </property>
-                 <property name="sizeType">
-                  <enum>QSizePolicy::Maximum</enum>
-                 </property>
-                 <property name="sizeHint" stdset="0">
-                  <size>
-                   <width>50</width>
-                   <height>20</height>
-                  </size>
-                 </property>
-                </spacer>
-               </item>
-               <item row="3" column="1">
-                <widget class="QLabel" name="producerLabel">
-                 <property name="font">
-                  <font>
-                   <pointsize>12</pointsize>
-                  </font>
-                 </property>
-                 <property name="text">
-                  <string>Producer</string>
-                 </property>
-                </widget>
-               </item>
-               <item row="5" column="1">
-                <widget class="QLabel" name="genreLabel">
-                 <property name="font">
-                  <font>
-                   <pointsize>12</pointsize>
-                  </font>
-                 </property>
-                 <property name="text">
-                  <string>Genre(s)</string>
-                 </property>
-                </widget>
-               </item>
-               <item row="1" column="1">
-                <widget class="QLabel" name="directorLabel">
-                 <property name="font">
-                  <font>
-                   <pointsize>12</pointsize>
-                  </font>
-                 </property>
-                 <property name="text">
-                  <string>Director</string>
-                 </property>
-                </widget>
-               </item>
-              </layout>
+                  <item>
+                   <spacer name="newSearchParameterLeftSpacer">
+                    <property name="orientation">
+                     <enum>Qt::Horizontal</enum>
+                    </property>
+                    <property name="sizeHint" stdset="0">
+                     <size>
+                      <width>37</width>
+                      <height>17</height>
+                     </size>
+                    </property>
+                   </spacer>
+                  </item>
+                  <item>
+                   <widget class="QPushButton" name="newSearchParameterButton">
+                    <property name="text">
+                     <string>      New Search Parameter      </string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <spacer name="newSearchParameterRightSpacer">
+                    <property name="orientation">
+                     <enum>Qt::Horizontal</enum>
+                    </property>
+                    <property name="sizeHint" stdset="0">
+                     <size>
+                      <width>37</width>
+                      <height>17</height>
+                     </size>
+                    </property>
+                   </spacer>
+                  </item>
+                 </layout>
+                </item>
+               </layout>
+              </widget>
              </widget>
             </item>
-            <item row="1" column="0">
-             <spacer name="searchButtonLeftSpacer">
-              <property name="orientation">
-               <enum>Qt::Horizontal</enum>
+            <item>
+             <layout class="QHBoxLayout" name="searchButtonContainerHLayout">
+              <property name="sizeConstraint">
+               <enum>QLayout::SetFixedSize</enum>
               </property>
-              <property name="sizeHint" stdset="0">
-               <size>
-                <width>351</width>
-                <height>20</height>
-               </size>
-              </property>
-             </spacer>
-            </item>
-            <item row="1" column="1">
-             <widget class="QPushButton" name="searchButton">
-              <property name="font">
-               <font>
-                <pointsize>12</pointsize>
-               </font>
-              </property>
-              <property name="text">
-               <string>     Search     </string>
-              </property>
-             </widget>
-            </item>
-            <item row="1" column="2">
-             <spacer name="searchButtonRightSpacer">
-              <property name="orientation">
-               <enum>Qt::Horizontal</enum>
-              </property>
-              <property name="sizeHint" stdset="0">
-               <size>
-                <width>351</width>
-                <height>20</height>
-               </size>
-              </property>
-             </spacer>
+              <item>
+               <spacer name="searchButtonLeftSpacer">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>351</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+              <item>
+               <widget class="QPushButton" name="searchButton">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="font">
+                 <font>
+                  <pointsize>12</pointsize>
+                 </font>
+                </property>
+                <property name="text">
+                 <string>     Search     </string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <spacer name="searchButtonRightSpacer">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>351</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+             </layout>
             </item>
            </layout>
           </widget>

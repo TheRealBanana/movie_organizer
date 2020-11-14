@@ -1,11 +1,13 @@
 from PyQt5 import QtWidgets, QtCore
+from collections import OrderedDict
 from .movie_library import MovieLibrary
 from .library_scanner import LibraryScanner
 from .options_dialog_functions import OptionsDialogFunctions
 from dialogs.options_dialog import Ui_OptionsDialog
-from dialogs.widgets.searchParameterWidget import searchParameterWidget
+from dialogs.widgets.searchParameterWidget import SearchParameterWidget
 
-def qstringFixer(self, value):
+
+def qstringFixer(value):
     if isinstance(value, QtCore.QString):
         value = str(value)
         if value == "true": value = True
@@ -39,6 +41,8 @@ class UIFunctions:
         #initialize our application
         self.setupConnections()
         self.settings = self.loadSettings()
+        #self.fieldlist = OrderedDict.fromkeys(self.movieLibrary.getFieldList(), True)
+        self.fieldlist = None
         self.loadLibraryIntoGui()
 
     def setupConnections(self):
@@ -46,14 +50,41 @@ class UIFunctions:
         self.uiref.actionSettings.triggered.connect(self.openOptionsDialog)
         self.uiref.movieLibraryList.currentItemChanged.connect(self.updateLibraryDisplay)
         self.uiref.newSearchParameterButton.clicked.connect(self.newSearchParameterButtonPressed)
+        self.uiref.searchButton.clicked.connect(self.searchButtonPressed)
+
+    def searchButtonPressed(self):
+        #Get a list of
+        pass
 
     def newSearchParameterButtonPressed(self):
+        #Dont do anything if we dont have any fields left
+        if not any(self.fieldlist.values()):
+            return
         #Create a new search parameter widget and connect it to our parametersFrame
-        newentrywidget = searchParameterWidget(self.movieLibrary.getFieldList(), parent=self.uiref.parametersFrame)
+        newentrywidget = SearchParameterWidget(parent=self.uiref.parametersFrame)
         newentrywidget.removeSelfRequest.connect(self.deleteSearchParameterWidget)
+        newentrywidget.searchParamFieldUpdate.connect(self.updateSearchParameterFieldList)
+        newentrywidget.updateFieldList(self.fieldlist.copy())
         self.uiref.parametersFrameVLayout.insertWidget(-1, newentrywidget)
 
+
+    def updateSearchParameterFieldList(self, oldfield, newfield, ignorewidget):
+        #Update our field list tracker
+        if len(oldfield) > 0:
+            self.fieldlist[oldfield] = True
+        self.fieldlist[newfield] = False
+        #regenerate our list:
+        #Get list of search parameter widgets to update their comboboxes with the new options
+        #I was going to use an abstract model but it was removing it from all the widgets, including
+        #the widget that had it selected. I didnt know how to exclude widgets and this was just easier.
+        for w in self.uiref.scrollAreaWidgetContents.findChildren(SearchParameterWidget):
+            if w == ignorewidget:
+                continue
+            w.updateFieldList(self.fieldlist.copy())
+
     def deleteSearchParameterWidget(self, w):
+        #Make the old field available again
+        self.fieldlist[w.currentfield] = True
         self.uiref.parametersFrameVLayout.removeWidget(w)
         w.deleteLater()
 
@@ -91,6 +122,8 @@ class UIFunctions:
             listitem.setData(QtCore.Qt.UserRole, d)
             listitem.setToolTip(str(d[11]))
             self.uiref.movieLibraryList.addItem(listitem)
+        #TODO The fieldlist shouldnt ever update dynamically but if we ever decide to this will probably break
+        self.fieldlist = OrderedDict.fromkeys(self.movieLibrary.getFieldList(), True)
 
     def updateLibraryDisplay(self, newitem, _):
         print("CHANGED")

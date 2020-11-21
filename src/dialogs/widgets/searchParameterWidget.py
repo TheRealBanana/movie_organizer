@@ -65,9 +65,8 @@ class SearchParameterWidget(QtWidgets.QWidget):
 
 
     def returnData(self):
-        #Just simply access to our field name and field value
-        value = self.searchTemplateEntry.text()
-        return (self.currentfield, value)
+        #Just simply access to our field value
+        return self.searchTemplateEntry.text()
 
     def updateFieldList(self, updatedstringlist):
         #Preserve whatever selection we had before because our model will change the indices

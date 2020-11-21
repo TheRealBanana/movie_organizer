@@ -5,6 +5,7 @@ from .library_scanner import LibraryScanner
 from .options_dialog_functions import OptionsDialogFunctions
 from dialogs.options_dialog import Ui_OptionsDialog
 from dialogs.widgets.searchParameterWidget import SearchParameterWidget
+from dialogs.widgets.movielibraryinfowidget import movieLibraryInfoWidget
 
 
 def qstringFixer(value):
@@ -48,13 +49,38 @@ class UIFunctions:
     def setupConnections(self):
         self.uiref.actionScan_Media_Collection.triggered.connect(self.startLibraryScan)
         self.uiref.actionSettings.triggered.connect(self.openOptionsDialog)
-        self.uiref.movieLibraryList.currentItemChanged.connect(self.updateLibraryDisplay)
+        self.uiref.movieLibraryInfoWidget.movieSelectionChanged.connect(self.updateLibraryDisplay)
         self.uiref.newSearchParameterButton.clicked.connect(self.newSearchParameterButtonPressed)
         self.uiref.searchButton.clicked.connect(self.searchButtonPressed)
 
     def searchButtonPressed(self):
-        #Get a list of
-        pass
+        #Get a list of search parameters
+        sep = " AND "
+        params = ["SELECT * FROM movie_data WHERE "]
+        for w in self.uiref.scrollAreaWidgetContents.findChildren(SearchParameterWidget):
+            fielddata = w.returnData()
+            if len(fielddata) == 0:
+                continue
+            querystr = "%s LIKE '%%%s%%'" % (w.currentfield, w.returnData())
+            if len(params) > 1:
+                querystr = sep + querystr
+            params.append(querystr)
+        print("BUILT SEARCH QUERY: ")
+        print("".join(params))
+        #TODO - I don't like sending over the specific query string from here.
+        #TODO - That should really be something movie_library handles on its own.
+        results = self.movieLibrary._SEARCH("".join(params))
+        #Now create a new search query tab and populate the results
+        movieinfowidget = movieLibraryInfoWidget(self.uiref.searchTabWidget)
+        movieinfowidget.movieSelectionChanged.connect(self.updateLibraryDisplay)
+        for r in results:
+            listitem = QtWidgets.QListWidgetItem(r[0])
+            listitem.setData(QtCore.Qt.UserRole, r)
+            listitem.setToolTip(str(r[11]))
+            movieinfowidget.movieLibraryList.addItem(listitem)
+        self.uiref.searchTabWidget.addTab(movieinfowidget, "SEARCH RESULTS N")
+        self.uiref.searchTabWidget.setCurrentWidget(movieinfowidget)
+
 
     def newSearchParameterButtonPressed(self):
         #Dont do anything if we dont have any fields left
@@ -66,7 +92,11 @@ class UIFunctions:
         newentrywidget.searchParamFieldUpdate.connect(self.updateSearchParameterFieldList)
         newentrywidget.updateFieldList(self.fieldlist.copy())
         self.uiref.parametersFrameVLayout.insertWidget(-1, newentrywidget)
-
+        #Disable the button if we are now out of possible options to add.
+        #The button does this weird blue blink just before going grey that is super annoying. Its related to the mouse
+        #hover state and I don't really want to fix that right now. TODO subclass QButton to allow toggling hover state
+        if not any(self.fieldlist.values()):
+            self.uiref.newSearchParameterButton.setEnabled(False)
 
     def updateSearchParameterFieldList(self, oldfield, newfield, ignorewidget):
         #Update our field list tracker
@@ -87,6 +117,9 @@ class UIFunctions:
         self.fieldlist[w.currentfield] = True
         self.uiref.parametersFrameVLayout.removeWidget(w)
         w.deleteLater()
+        #Reenable the add search parameter button if we have any options left
+        if any(self.fieldlist.values()):
+            self.uiref.newSearchParameterButton.setEnabled(True)
 
     def loadSettings(self):
         self.settings = {}
@@ -121,11 +154,12 @@ class UIFunctions:
             listitem = QtWidgets.QListWidgetItem(d[0])
             listitem.setData(QtCore.Qt.UserRole, d)
             listitem.setToolTip(str(d[11]))
-            self.uiref.movieLibraryList.addItem(listitem)
+            self.uiref.movieLibraryInfoWidget.movieLibraryList.addItem(listitem)
         #TODO The fieldlist shouldnt ever update dynamically but if we ever decide to this will probably break
         self.fieldlist = OrderedDict.fromkeys(self.movieLibrary.getFieldList(), True)
 
-    def updateLibraryDisplay(self, newitem, _):
+    #TODO UPDATE ME TO USE ARBITRARY WIDGET TO ADD TO
+    def updateLibraryDisplay(self, newitem, olditem, widget):
         print("CHANGED")
         data = newitem.data(QtCore.Qt.UserRole)
         title = newitem.text()
@@ -181,7 +215,7 @@ class UIFunctions:
 
       
 """ % (*data,)
-        self.uiref.movieInfoDisplay.setHtml(displaytext)
+        widget.setHtml(displaytext)
 
     def openOptionsDialog(self):
         dialog = QtWidgets.QDialog(self.MainWindow)

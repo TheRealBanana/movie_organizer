@@ -97,6 +97,7 @@ class MovieLibrary:
                 # With normal dicts we have to specify each value separately (which is a lot of bleh code).
                 checktype(moviedata)
                 #dbcursor.execute("INSERT INTO movie_data VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (*moviedata.values(),))
+                #TODO make separate columns for the movie title and filenames
                 dbcursor.execute("INSERT INTO movie_data VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                                  (moviedata["title"],
                                   str(moviedata["directors"]),
@@ -167,11 +168,8 @@ class MovieLibrary:
             fieldlist.append(c[1])
         return fieldlist
 
-    def _SEARCH(self, searchparams):
-        #Search params:
-        #
-
-
-
-        pass #TODO
+    #TODO bare searching with a query string is haphazard at best
+    def _SEARCH(self, querystr):
+        with getDbCursor(self.dbpath, self.dbmutex) as dbcursor:
+            return dbcursor.execute(querystr).fetchall()
 

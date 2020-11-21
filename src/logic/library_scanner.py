@@ -194,6 +194,7 @@ class Crawler(QObject):
         for f in allfiles:
             if self.stopping is True: return None
 
+            #Enabling this one and the "Found video file" emit() causes crashes because they can sometimes emit too close together.
             #self.progressUpdate.emit("Checking if file is a video:  %s" % f)
             if os.path.isfile(os.path.join(directory, f)) is True and is_video_file(f) is True:
                 self.progressUpdate.emit("Found video file:  %s" % f)

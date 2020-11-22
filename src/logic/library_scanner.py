@@ -4,15 +4,11 @@ from PyQt5.QtCore import QThread, QObject, pyqtSignal, QVariant
 from collections import OrderedDict as OD
 from dialogs.widgets.generic_progress_bar import genericProgressDialog
 import imdb
-import pickle
 import re
 import os
 import os.path
-from PyQt5.Qt import QApplication
 
-from time import sleep
 
-import traceback
 IGNORE_FOLDERS = ["ZZZZZZZZZZZZZZZZ"]
 
 VIDEO_EXTENSIONS=["avi", "divx", "amv", "mpg", "mpeg", "mpe", "m1v", "m2v",
@@ -21,6 +17,15 @@ VIDEO_EXTENSIONS=["avi", "divx", "amv", "mpg", "mpeg", "mpe", "m1v", "m2v",
                   "mpv4", "hdmov", "mov", "3gp", "3gpp", "3g2", "3gp2",
                   "mkv", "webm", "ogm", "ogv", "flv", "f4v", "wmv", "rmvb",
                   "rm", "dv"]
+
+
+movie_title_regex = re.compile("^(.*?)[\s\.]?((?:19|20)[0-9]{2}).*?(720|1080|2160)", re.IGNORECASE)
+movie_title_regex_noyear = re.compile("^(.*)[\s\.]?((?:19|20)[0-9]{2})?.*?(720|1080|2160)", re.IGNORECASE)
+#group 1 = movie title (might have trailing space)
+#group 2 = year
+#group 3 = resolution
+def is_movie_file(filename):
+    return True if (movie_title_regex.search(filename) is not None or movie_title_regex_noyear.search(filename) is not None) else False
 
 def is_video_file(filename):
     fileextensionreg = re.match("^.*?\.([a-z0-9]{1,6})$", filename, re.IGNORECASE)
@@ -75,68 +80,84 @@ class imdbInfoGrabber(QObject):
     def getInfo(self):
         #TODO DELETEME
         p = 0
-        movie_title_regex =  re.compile("^(.*?)[\s\.]?((?:19|20)[0-9]{2}).*?(720|1080|2160)", re.IGNORECASE)
-        #group 1 = movie title (might have trailing space)
-        #group 2 = year
-        #group 3 = resolution
 
-        ia = imdb.IMDb()
+        #ia = imdb.IMDb() # Online check
+        ia = imdb.IMDb("s3", "sqlite:///C:/imdb_data/dbout/imdbdataset_Nov.21.2020.sqlite")
         #self.filedata[tld] = [ [filename, foldername], ...]
         for tld, files in self.filedata.items():
             self.progressUpdate.emit("Checking TLD: %s" % tld)
             if self.stopping: return
 
             for finfo in files:
+                if self.stopping: return
+
                 fname = finfo[0]
                 fpath = finfo[1]
-                self.progressUpdate.emit("Checking if file is a movie: %s" % fname)
                 freg = movie_title_regex.search(fname)
-                if freg is not None:
-                    movietitle = freg.group(1).replace(".", " ") # Periods mess things up
-                    movieyear = freg.group(2)
-                    self.progressUpdate.emit("Searching IMDb for '%s %s'" % (movietitle, movieyear))
-                    searchdata = ia.search_movie("%s %s" % (movietitle, movieyear))
-                    #Try and find the one that has a matching year, best we can do to be sure
-                    mid = None
-                    for result in searchdata:
-                        # Allow some fuzz. Some of my collection has the year off by one or two compared to imdb
-                        # Should prevent the issue I was having with weird same titles from decades later or earlier
-                        # Sometimes the wrong results are still only a year difference. Just hope the first result is ours. :/
-                        if abs(int(result.data["year"]) - int(movieyear)) <= 2:
-                            mid = result.movieID
-                            self.progressUpdate.emit("Found IMDb ID for %s:  %s" % (movietitle, mid))
-                            break
-                    if mid is not None: # Only check first result and pray
-                        self.progressUpdate.emit("Found good IMDb data for %s" % fname)
-                        movie_data = ia.get_movie(mid).data
-                        #Build up our dictionary to emit
-                        dbdata = OD()
-                        dbdata["title"] = movie_data["title"]
-                        dbdata["directors"] = pickle.dumps(get_person_names(movie_data["directors"]))
-                        dbdata["writers"] = pickle.dumps(get_person_names(movie_data["writers"]))
-                        dbdata["producers"] = pickle.dumps(get_person_names(movie_data["producers"]))
-                        dbdata["actors"] = pickle.dumps(get_person_names(movie_data["cast"]))
-                        dbdata["composers"] = pickle.dumps(get_person_names(movie_data["composers"]))
-                        dbdata["genres"] = pickle.dumps(movie_data["genres"])
-                        dbdata["runtime"] = movie_data["runtimes"][0]
-                        sizeindex = movie_data["cover url"].index("@._V1")
-                        dbdata["coverurl"] = movie_data["cover url"][:sizeindex] + "@._V1_SX600.jpg" # cover url is small otherwise. Can grab full size by omitting _SX600
-                        dbdata["playcount"] = 0
-                        dbdata["lastplay"] = ""
-                        dbdata["filelocation"] = fpath
-                        dbdata["imdb_id"] = mid
-                        dbdata["imdb_rating"] = movie_data["rating"]
-                        dbdata["rating"] = 0
-                        dbdata["extra1"] = ""
-                        dbdata["extra2"] = ""
-                        self.newTitleData.emit(dbdata)
-                    else:
-                        self.progressUpdate.emit("Didn't pass year check for %s" % fname)
-                        print(type(searchdata[0]))
-                else:
-                    e = "Encountered error with title:  %s" % fname
-                    self.progressUpdate.emit(e)
-                    print(e)
+                #TODO PROPERLY FIXME This is such a bodge
+                if freg is None:
+                    freg = movie_title_regex_noyear.search(fname)
+                movietitle = freg.group(1).replace(".", " ") # Periods mess things up
+                movieyear = freg.group(2) if freg.group(2) is not None else 0
+                #self.progressUpdate.emit("Searching IMDb for '%s %s'" % (movietitle, movieyear))
+                #searchdata = ia.search_movie("%s %s" % (movietitle, movieyear))
+                self.progressUpdate.emit("Searching IMDb for '%s'" % movietitle)
+                searchdata = ia.search_movie("%s" % movietitle)
+                #searchdata = []
+                #sleep(3)
+                if len(searchdata) == 0:
+                    continue
+                #Try and find the one that has a matching year, best we can do to be sure
+                for result in searchdata:
+                    if self.stopping: return
+
+                    # Allow some fuzz. Some of my collection has the year off by one or two compared to imdb
+                    # Should prevent the issue I was having with weird same titles from decades later or earlier
+                    # Sometimes the wrong results are still only a year difference. Just hope the first result is ours. :/
+                    if ("kind" in result.data and result.data["kind"] != "movie") or \
+                        "startYear" in result.data and abs(int(result.data["startYear"]) - int(movieyear)) > 2 or \
+                        result.movieID is None:
+                            continue
+
+                    self.progressUpdate.emit("Found IMDb ID for %s:  %s" % (movietitle, result.movieID))
+                    self.progressUpdate.emit("Found good IMDb data for %s" % fname)
+                    movie_data = ia.get_movie(result.movieID).data
+                    #Build up our dictionary to emit
+                    dbdata = OD()
+                    if "title" not in movie_data:
+                        continue
+                    dbdata["title"] = movie_data["title"]
+                    if "director" not in movie_data:
+                        continue
+                    dbdata["directors"] = str(get_person_names(movie_data["director"]))
+                    if "writer" not in movie_data:
+                        continue
+                    dbdata["writers"] = str(get_person_names(movie_data["writer"]))# if "writer" in movie_data else "NO_WRITER_FOUND"
+                    dbdata["producers"] = str(get_person_names(movie_data["producer"])) if "producer" in movie_data else "NO_PRODUCER_FOUND"
+                    #Should always have a cast. If we dont this is probably the wrong entry
+                    if "cast" not in movie_data:
+                        continue
+                    dbdata["actors"] = str(get_person_names(movie_data["cast"]))
+                    dbdata["composers"] = str(get_person_names(movie_data["composer"])) if "composer" in movie_data else "NO_COMPOSER_FOUND"
+                    dbdata["genres"] = str(movie_data["genres"])
+                    if "runtimes" not in movie_data:
+                        continue
+                    dbdata["runtime"] = movie_data["runtimes"][0]
+                    #cover url isnt in the text data files so we wont be using this for now
+                    #will be easy to get it manually later when we need it
+                    #sizeindex = movie_data["cover url"].index("@._V1")
+                    #dbdata["coverurl"] = movie_data["cover url"][:sizeindex] + "@._V1_SX600.jpg" # cover url is small otherwise. Can grab full size by omitting _SX600
+                    dbdata["coverurl"] = ""
+                    dbdata["playcount"] = 0
+                    dbdata["lastplay"] = ""
+                    dbdata["filelocation"] = fpath
+                    dbdata["imdb_id"] = result.movieID
+                    dbdata["imdb_rating"] = movie_data["rating"] if "rating" in movie_data else -1
+                    dbdata["rating"] = 0
+                    dbdata["extra1"] = ""
+                    dbdata["extra2"] = ""
+                    self.newTitleData.emit(dbdata)
+                    break
             #self.newTitleData.emit(files[0])
         self.workFinished.emit()
 
@@ -164,10 +185,6 @@ class Crawler(QObject):
         if self.stopping is True: return None
 
         allfiles = os.listdir(directory)
-        #List comprehension looks cool but prevents us from canceling mid-search
-        #dirs = [d for d in allfiles if os.path.isdir(os.path.join(directory, d)) is True]
-        #dirs = [d for d in allfiles if os.path.isdir(os.path.join(directory, d)) is True and
-        #        not re.search("s[0-9]{2}", d, re.IGNORECASE)] #No TV shows dammit
         dirs = []
         for d in allfiles:
             if self.stopping is True:
@@ -187,18 +204,16 @@ class Crawler(QObject):
                     print("REMOVED: %s" % d)
 
         # Now that we're down to the bottom of the dir chain, we work our way back through the files
-        #files = [f for f in allfiles if os.path.isfile(os.path.join(directory, f)) is True]
-        #files = [f for f in allfiles if os.path.isfile(os.path.join(directory, f)) is True and is_video_file(f) is True]
-        #files = {f:directory for f in allfiles if os.path.isfile(os.path.join(directory, f)) is True and is_video_file(f) is True}
         files = []
         for f in allfiles:
             if self.stopping is True: return None
 
             #Enabling this one and the "Found video file" emit() causes crashes because they can sometimes emit too close together.
             #self.progressUpdate.emit("Checking if file is a video:  %s" % f)
-            if os.path.isfile(os.path.join(directory, f)) is True and is_video_file(f) is True:
-                self.progressUpdate.emit("Found video file:  %s" % f)
+            if os.path.isfile(os.path.join(directory, f)) is True and is_video_file(f) is True and is_movie_file(f) is True:
+                self.progressUpdate.emit("Found a movie video file:  %s" % f)
                 files.append((f, directory))
+
         # Send out the files we found here
         if len(files) > 0:
             self.foundNewFiles.emit({"files": files, "directory": self.startpath})
@@ -229,6 +244,7 @@ class LibraryScanner(QObject):
         self.imdbworker = None
         self.folderstoscan = scansettings["library"].copy()
         self.filecount = -1
+        self.imdbsuccessfuladd = -1
         self.filelist = {}
         self.progressbar = None
 
@@ -245,13 +261,13 @@ class LibraryScanner(QObject):
         self.filelist = {}
         #Create our progress bar
         self.progressbar = genericProgressDialog()
-        self.progressbar.cancelButton.clicked.connect(self.stopScan)
+        #self.progressbar.cancelButton.clicked.connect(self.stopScan)
+        self.progressbar.closableDialogClosing.connect(self.stopScan)
         self.progressbar.progressBar.setMaximum(len(self.scansettings["library"]))
         self.progressbar.progressBar.setMinimum(0)
         self.progressbar.progressBar.setValue(0)
         self.progressbar.progressLabel.setText("Found 0 Media Files")
         self.progressbar.show()
-        QApplication.processEvents()
         self.spawnCrawlerThreads()
 
     def spawnCrawlerThreads(self):
@@ -282,14 +298,12 @@ class LibraryScanner(QObject):
         progresslabel = "[%.1f%%] %s titles added to database... " % (perc, newcount)
         self.progressbar.progressBar.setValue(newcount)
         self.progressbar.progressLabel.setText(progresslabel)
-        QApplication.processEvents()
 
 
     def totalFileCountUpdate(self, filecount):
         #User to track total files
         self.filecount += filecount
         self.progressbar.progressLabel.setText("Found %s Media Files..." % self.filecount)
-        QApplication.processEvents()
 
     def crawlerWorkFinishedCallback(self, c):
         #Terminate the thread and pop it from our thread list
@@ -304,7 +318,6 @@ class LibraryScanner(QObject):
         elif len(self.activecrawlerthreads) == 0:
             self.startImdbInfoGrab()
         self.progressbar.progressBar.setValue(self.progressbar.progressBar.value()+1)
-        QApplication.processEvents()
 
     def newFileCallback(self, filedata):
         #filedata[files] = [ (filename: fulldirpath), ...]
@@ -313,20 +326,26 @@ class LibraryScanner(QObject):
             self.filelist[tld] = []
         self.filelist[tld] += filedata["files"]
         self.totalFileCountUpdate(len(filedata["files"]))
-        QApplication.processEvents()
 
     def startImdbInfoGrab(self):
         if self.imdbworker is not None:
             self.imdbThreadFinishedCallback()
+        self.imdbsuccessfuladd = 0
         #Create our worker and qthread
         ithread = QThread()
         self.imdbworker = imdbInfoGrabber(self.filelist, ithread)
+        # !! IMPORTANT NOTE!
+        # This one got me good. For some reason this imdb thread kept blocking the main GUI thread and I couldnt figure it out.
+        # I tried having a background loop that runs processEvents() but that was stopped too!
+        # Turns out, if you make connections before you moveToThread(), those connections get run in the current context, i.e.
+        # the main GUI thread. So if you swap the order and moveToThread() BEFORE making connections, those connections run
+        # in the QThread's context. Super easy mistake and not a lot of way to diagnose the issue.
+        self.imdbworker.moveToThread(ithread)
         ithread.started.connect(self.imdbworker.getInfo)
         self.imdbworker.newTitleData.connect(self.imdbThreadUpdateCallback)
         self.imdbworker.workFinished.connect(self.imdbThreadFinishedCallback)
         self.imdbworker.progressUpdate.connect(self.updateProgressbarDetails)
         #ithread.finished.connect(self.imdbThreadFinishedCallback)
-        self.imdbworker.moveToThread(ithread)
         ithread.start()
         #self.updateDisplayRequested.emit()
         #Set up the progress bar for the next step
@@ -335,26 +354,29 @@ class LibraryScanner(QObject):
         self.progressbar.setWindowTitle("Retrieving IMDB information for found titles...")
         progresslabel = "[%.1f%%] %s titles added to database... " % (0.0, 0)
         self.progressbar.progressLabel.setText(progresslabel)
-        QApplication.processEvents()
+
 
     def imdbThreadUpdateCallback(self, dbdata):
         self.libref.addMovie(dbdata)
-        print("UPDATECALL")
+        print("UPDATECALL %s " % self.imdbsuccessfuladd)
         self.updateImdbProgressBar()
-        QApplication.processEvents()
+        self.imdbsuccessfuladd += 1
 
     def imdbThreadFinishedCallback(self):
         self.imdbworker.stopping = True
         self.imdbworker.ithread.quit()
         self.imdbworker.ithread.wait()
         self.imdbworker = None
+        #change the cancel button to close since we are finished now
+        finalmessage = "Finished scanning library and updating IMDb information. Added %s titles to the database." % self.imdbsuccessfuladd
+        self.progressbar.setFinished(finalmessage)
 
     def stopScan(self):
+        print("STOPCALL")
         self.stopping = True
         for c in self.activecrawlerthreads:
             c.stopt()
         if self.imdbworker is not None:
             self.imdbworker.stopt()
         self.progressbar.close()
-        QApplication.processEvents()
 

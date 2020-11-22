@@ -2,11 +2,21 @@ import sqlite3
 import os
 import os.path
 from collections import OrderedDict as OD
-from PyQt5.QtCore import QObject, pyqtSignal
-import pickle
 from ast import literal_eval
 
 DATABASE_PATH = "./movielibrary.db"
+
+def fixDbData(data):
+    returndata = {}
+    #Fix the data
+    for d in data:
+        newd = []
+        for s in d:
+            if isinstance(s, str) and len(s) > 0 and s[0] == "[":
+                s = literal_eval(s)
+            newd.append(s)
+        returndata[d[0]] = newd
+    return returndata
 
 #helper objects
 def checkDbOpen(func):
@@ -136,14 +146,7 @@ class MovieLibrary:
     def getFullDatabase(self):
         with getDbCursor(self.dbpath, self.dbmutex) as dbcursor:
             alldata = dbcursor.execute("SELECT * FROM movie_data").fetchall()
-        returndata = {}
-        for d in alldata:
-            newd = []
-            for s in d:
-                if isinstance(s, str) and s[0:2] == "b'":
-                    s = pickle.loads(literal_eval(s))
-                newd.append(s)
-            returndata[d[0]] = newd
+        returndata = fixDbData(alldata)
         return returndata
 
     @checkDbOpen
@@ -152,8 +155,9 @@ class MovieLibrary:
         with getDbCursor(self.dbpath, self.dbmutex) as dbcursor:
             data = dbcursor.execute("SELECT genres FROM movie_data").fetchall()
             for d in data:
-                #Unpickle #TODO STOP USING PICKLE!
-                tmplist += pickle.loads(literal_eval(d[0]))
+                #Just be sure we've got a list.
+                if d[0] == "[":
+                    tmplist.append(literal_eval(d))
         #Remove dupes. This works because dictionary keys must be unique
         tmplist = list(dict.fromkeys(tmplist))
         tmplist.sort()
@@ -171,5 +175,5 @@ class MovieLibrary:
     #TODO bare searching with a query string is haphazard at best
     def _SEARCH(self, querystr):
         with getDbCursor(self.dbpath, self.dbmutex) as dbcursor:
-            return dbcursor.execute(querystr).fetchall()
+            return fixDbData(dbcursor.execute(querystr).fetchall())
 

@@ -54,6 +54,7 @@ class genericProgressDialog(QtWidgets.QDialog):
         self.cancelButton.setMinimumSize(QtCore.QSize(75, 22))
         self.cancelButton.setMaximumSize(QtCore.QSize(75, 22))
         self.cancelButton.setObjectName("cancelButton")
+        self.cancelButton.clicked.connect(lambda: self.closableDialogClosing.emit())
         self.horizontalLayout.addWidget(self.cancelButton)
         spacerItem1 = QtWidgets.QSpacerItem(50, 20, QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Minimum)
         self.horizontalLayout.addItem(spacerItem1)
@@ -66,14 +67,15 @@ class genericProgressDialog(QtWidgets.QDialog):
         self.detailsButton.setObjectName(u"detailsButton")
         self.horizontalLayout.addWidget(self.detailsButton)
         self.detailsButton.pressed.connect(self.detailsButtonPressed)
-        self.detailsTextOutput = None
+        #self.detailsTextOutput = None
+        self.detailsTextOutput = QtWidgets.QTextBrowser(self)
+        self.detailsTextOutput.setObjectName(u"detailsTextOutput")
+        self.detailsTextOutput.document().setMaximumBlockCount(MAX_SCROLL_LINES)
+        self.detailsTextOutput.hide()
+        self.verticalLayout.addWidget(self.detailsTextOutput)
         self.showingDetails = False
 
     def updateDetailsText(self, text):
-        #update only if showing details
-        if self.showingDetails is False:
-            return
-
         #Preserve current scrollbar/cursor state
         vscrollbar = self.detailsTextOutput.verticalScrollBar()
         vscrollmax = vscrollbar.maximum()
@@ -102,19 +104,14 @@ class genericProgressDialog(QtWidgets.QDialog):
         #Just constantly keep scrolling to the bottom
         #print("VMAX: %s" % self.detailsTextOutput.document().blockCount())
         #self.detailsTextOutput.verticalScrollBar().setSliderPosition(self.detailsTextOutput.verticalScrollBar().maximum())
-
         QtWidgets.QApplication.processEvents()
 
 
     def detailsButtonPressed(self):
         print("DETAILSBUTTON")
         if self.showingDetails is False:
-            #Create our text browser for detailed output and add it to the vertical layout
-            self.detailsTextOutput = QtWidgets.QTextBrowser(self)
-            self.detailsTextOutput.setObjectName(u"detailsTextOutput")
-            self.detailsTextOutput.document().setMaximumBlockCount(MAX_SCROLL_LINES)
-            self.verticalLayout.addWidget(self.detailsTextOutput)
-            #Resize our progressbar dialog to accommodate the new widget
+            self.detailsTextOutput.show()
+            #Resize our progressbar dialog to accommodate the details output widget
             self.setMaximumSize(QtCore.QSize(16777215, 325))
             self.resize(500, 325)
             #Modify the details button to change things back
@@ -123,8 +120,7 @@ class genericProgressDialog(QtWidgets.QDialog):
             QtWidgets.QApplication.processEvents()
         else:
             #Hide the details.
-            self.verticalLayout.removeWidget(self.detailsTextOutput)
-            self.detailsTextOutput.deleteLater()
+            self.detailsTextOutput.hide()
             self.setMaximumSize(QtCore.QSize(16777215, 123))
             self.resize(500, 123)
             #Reset the button
@@ -132,10 +128,11 @@ class genericProgressDialog(QtWidgets.QDialog):
             self.showingDetails = False
             QtWidgets.QApplication.processEvents()
 
+    def setFinished(self, finalmessage=""):
+        self.updateDetailsText(finalmessage)
+        self.cancelButton.setText("Close")
 
-
-
-
-def closeEvent(self, QCloseEvent):
+    def closeEvent(self, QCloseEvent):
+        print("CLOSEEVENT")
         self.closableDialogClosing.emit()
         QCloseEvent.accept()

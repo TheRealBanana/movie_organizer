@@ -65,18 +65,19 @@ class UIFunctions:
             if len(params) > 1:
                 querystr = sep + querystr
             params.append(querystr)
-        print("BUILT SEARCH QUERY: ")
-        print("".join(params))
         #TODO - I don't like sending over the specific query string from here.
         #TODO - That should really be something movie_library handles on its own.
         results = self.movieLibrary._SEARCH("".join(params))
         #Now create a new search query tab and populate the results
         movieinfowidget = movieLibraryInfoWidget(self.uiref.searchTabWidget)
         movieinfowidget.movieSelectionChanged.connect(self.updateLibraryDisplay)
-        for r in results:
-            listitem = QtWidgets.QListWidgetItem(r[0])
-            listitem.setData(QtCore.Qt.UserRole, r)
-            listitem.setToolTip(str(r[11]))
+        keys = list(results.keys())
+        keys.sort()
+        for k in keys:
+            d = results[k]
+            listitem = QtWidgets.QListWidgetItem(d[0])
+            listitem.setData(QtCore.Qt.UserRole, d)
+            listitem.setToolTip(str(d[11]))
             movieinfowidget.movieLibraryList.addItem(listitem)
         self.uiref.searchTabWidget.addTab(movieinfowidget, "SEARCH RESULTS N")
         self.uiref.searchTabWidget.setCurrentWidget(movieinfowidget)
@@ -158,13 +159,8 @@ class UIFunctions:
         #TODO The fieldlist shouldnt ever update dynamically but if we ever decide to this will probably break
         self.fieldlist = OrderedDict.fromkeys(self.movieLibrary.getFieldList(), True)
 
-    #TODO UPDATE ME TO USE ARBITRARY WIDGET TO ADD TO
-    def updateLibraryDisplay(self, newitem, olditem, widget):
-        print("CHANGED")
+    def updateLibraryDisplay(self, newitem, _, widget):
         data = newitem.data(QtCore.Qt.UserRole)
-        title = newitem.text()
-        path = newitem.toolTip()
-
         #0,dbdata["title"]
         #1,dbdata["directors"]
         #2,dbdata["writers"]
@@ -191,7 +187,6 @@ class UIFunctions:
                     data[i] = "<br>".join(["{name} as {character}".format(**r) for r in d])
                 else:
                     data[i] = ", ".join(d)
-
         displaytext = """SELECTED_MOVIE_DATA: <br><br>
 
 <b><h2>TITLE:</h2></b>  <h1>%s</h1> <br><br>
@@ -211,9 +206,6 @@ class UIFunctions:
 <b>RATING:</b>  %s<br><br>
 <b>EXTRA1:</b>  %s<br><br>
 <b>EXTRA2:</b>  %s<br><br>
-
-
-      
 """ % (*data,)
         widget.setHtml(displaytext)
 

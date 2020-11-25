@@ -33,8 +33,8 @@ def is_video_file(filename):
         fext = fileextensionreg.group(1)
         if fext in VIDEO_EXTENSIONS:
             # Ignore sample videos and TV shows
-            if not re.match("(^.*?sample\.([a-z0-9]{1,6})$|^sample.*$)", fext, re.IGNORECASE) and \
-               not re.search("(((s|e)[0-9]{1,2}){2}|[0-9]{1,2}x[0-9]{1,2})", fext, re.IGNORECASE):
+            if not re.match("(^.*?sample\.([a-z0-9]{1,6})$|^sample.*$)", filename, re.IGNORECASE) and \
+               not re.search("((([se])[0-9]{1,2}){2}|[0-9]{1,2}x[0-9]{1,2})", filename, re.IGNORECASE):
                     return True
     return False
 
@@ -120,7 +120,6 @@ class imdbInfoGrabber(QObject):
                             continue
 
                     self.progressUpdate.emit("Found IMDb ID for %s:  %s" % (movietitle, result.movieID))
-                    self.progressUpdate.emit("Found good IMDb data for %s" % fname)
                     movie_data = ia.get_movie(result.movieID).data
                     #Build up our dictionary to emit
                     dbdata = OD()
@@ -156,6 +155,7 @@ class imdbInfoGrabber(QObject):
                     dbdata["rating"] = 0
                     dbdata["extra1"] = ""
                     dbdata["extra2"] = ""
+                    self.progressUpdate.emit("Found good IMDb data for %s with id %s" % (fname, result.movieID))
                     self.newTitleData.emit(dbdata)
                     break
             #self.newTitleData.emit(files[0])
@@ -263,7 +263,11 @@ class LibraryScanner(QObject):
         self.progressbar = genericProgressDialog()
         #self.progressbar.cancelButton.clicked.connect(self.stopScan)
         self.progressbar.closableDialogClosing.connect(self.stopScan)
-        self.progressbar.progressBar.setMaximum(len(self.scansettings["library"]))
+        if len(self.scansettings["library"]) > 1:
+            pmax = len(self.scansettings["library"])
+        else:
+            pmax = 0
+        self.progressbar.progressBar.setMaximum(pmax)
         self.progressbar.progressBar.setMinimum(0)
         self.progressbar.progressBar.setValue(0)
         self.progressbar.progressLabel.setText("Found 0 Media Files")

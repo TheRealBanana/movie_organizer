@@ -7,6 +7,9 @@ import imdb
 import re
 import os
 import os.path
+from difflib import SequenceMatcher
+# Using a rather low match ratio just to weed out the completely wrong results but try to keep partial title matches (might catch on sequels tho)
+MASTER_RATIO = 0.75
 
 
 IGNORE_FOLDERS = ["ZZZZZZZZZZZZZZZZ"]
@@ -56,19 +59,46 @@ def get_person_names(personlist):
             retdata["character"] = p.currentRole.data["name"]
             namelist.append(retdata)
         else:
-            namelist.append(p.data["name"])
+            try:
+                namelist.append(p.data["name"])
+            except Exception as e:
+                print(e)
+                print(p.data)
+                print(dir(p))
+
     return namelist
+
+def filterImdbResults(ia, results_list):
+    #Filter out non-movie results and sort by a given data key
+    outlist = []
+    for result in results_list:
+        # Allow some fuzz. Some of my collection has the year off by one or two compared to imdb
+        # Should prevent the issue I was having with weird same titles from decades later or earlier
+        # Sometimes the wrong results are still only a year difference. Just hope the first result is ours. :/
+        if ("kind" in result.data and result.data["kind"] != "movie") or \
+                result.movieID is None:
+            continue
+        result.extradata = ia.get_movie(result.movieID).data
+        if "rating" not in result.extradata:
+            result.extradata["rating"] = 0
+        if "runtimes" not in result.extradata:
+            print("NOTHERE")
+            result.extradata["runtimes"] = [0]
+
+        outlist.append(result)
+    return sorted(outlist, key=lambda m: m.extradata["rating"], reverse=True)
 
 class imdbInfoGrabber(QObject):
     newTitleData = pyqtSignal(dict)
     workFinished = pyqtSignal()
     progressUpdate = pyqtSignal(str)
 
-    def __init__(self, filedata, ithread, parent=None):
+    def __init__(self, filedata, ithread, checkFunc, parent=None):
         super(imdbInfoGrabber, self).__init__(parent)
         self.setObjectName("Crawler-%s" % ithread.currentThreadId())
         self.filedata = filedata
         self.ithread = ithread
+        self.checkexistsfunc = checkFunc
         self.stopping = False
 
     def stopt(self):
@@ -99,10 +129,14 @@ class imdbInfoGrabber(QObject):
                     freg = movie_title_regex_noyear.search(fname)
                 movietitle = freg.group(1).replace(".", " ") # Periods mess things up
                 movieyear = freg.group(2) if freg.group(2) is not None else 0
+                #Check if we already have this movie in the database
+                if self.checkexistsfunc(movietitle):
+                    self.progressUpdate.emit("Skipping %s, already in database" % movietitle)
+                    continue
                 #self.progressUpdate.emit("Searching IMDb for '%s %s'" % (movietitle, movieyear))
                 #searchdata = ia.search_movie("%s %s" % (movietitle, movieyear))
                 self.progressUpdate.emit("Searching IMDb for '%s'" % movietitle)
-                searchdata = ia.search_movie("%s" % movietitle)
+                searchdata = filterImdbResults(ia, ia.search_movie("%s" % movietitle, results=1000)) # Limit the number of results to 1000
                 #searchdata = []
                 #sleep(3)
                 if len(searchdata) == 0:
@@ -110,22 +144,20 @@ class imdbInfoGrabber(QObject):
                 #Try and find the one that has a matching year, best we can do to be sure
                 for result in searchdata:
                     if self.stopping: return
-
-                    # Allow some fuzz. Some of my collection has the year off by one or two compared to imdb
-                    # Should prevent the issue I was having with weird same titles from decades later or earlier
-                    # Sometimes the wrong results are still only a year difference. Just hope the first result is ours. :/
-                    if ("kind" in result.data and result.data["kind"] != "movie") or \
-                        "startYear" in result.data and abs(int(result.data["startYear"]) - int(movieyear)) > 2 or \
-                        result.movieID is None:
-                            continue
-
+                    #Filter out wrong year results
+                    if "startYear" in result.data and abs(int(result.data["startYear"]) - int(movieyear)) >= 1: continue
                     self.progressUpdate.emit("Found IMDb ID for %s:  %s" % (movietitle, result.movieID))
-                    movie_data = ia.get_movie(result.movieID).data
+                    movie_data = result.extradata
                     #Build up our dictionary to emit
                     dbdata = OD()
                     if "title" not in movie_data:
                         continue
                     dbdata["title"] = movie_data["title"]
+                    #Check if the name is close, if not dont even bother
+                    if SequenceMatcher(None, movietitle.lower(), movie_data["title"].lower()).ratio() < MASTER_RATIO:
+                        print("title mismatch, skipping: t1: %s    t2: %s" % (movietitle, movie_data["title"]))
+                        continue
+
                     if "director" not in movie_data:
                         continue
                     dbdata["directors"] = str(get_person_names(movie_data["director"]))
@@ -142,6 +174,10 @@ class imdbInfoGrabber(QObject):
                     if "runtimes" not in movie_data:
                         continue
                     dbdata["runtime"] = movie_data["runtimes"][0]
+                    #Discard anything less than an hour long.
+                    if movie_data["runtimes"][0] < 60:
+                        self.progressUpdate.emit("Too short a runtime, skipping id %s" % result.movieID)
+                        continue
                     #cover url isnt in the text data files so we wont be using this for now
                     #will be easy to get it manually later when we need it
                     #sizeindex = movie_data["cover url"].index("@._V1")
@@ -293,6 +329,7 @@ class LibraryScanner(QObject):
             self.activecrawlerthreads.append(c)
 
     def updateProgressbarDetails(self, s):
+        #print(s)
         self.progressbar.updateDetailsText(s)
 
     def updateImdbProgressBar(self):
@@ -338,7 +375,7 @@ class LibraryScanner(QObject):
         self.imdbsuccessfuladd = 0
         #Create our worker and qthread
         ithread = QThread()
-        self.imdbworker = imdbInfoGrabber(self.filelist, ithread)
+        self.imdbworker = imdbInfoGrabber(self.filelist, ithread, self.libref.checkForTitle)
         # !! IMPORTANT NOTE!
         # This one got me good. For some reason this imdb thread kept blocking the main GUI thread and I couldnt figure it out.
         # I tried having a background loop that runs processEvents() but that was stopped too!
@@ -375,6 +412,7 @@ class LibraryScanner(QObject):
         #change the cancel button to close since we are finished now
         finalmessage = "Finished scanning library and updating IMDb information. Added %s titles to the database." % self.imdbsuccessfuladd
         self.progressbar.setFinished(finalmessage)
+        self.updateDisplayRequested.emit()
 
     def stopScan(self):
         print("STOPCALL")

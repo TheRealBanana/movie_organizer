@@ -146,7 +146,10 @@ class UIFunctions:
         #qs.sync #shouldnt be needed:
 
     def loadLibraryIntoGui(self):
-        print("LOAD")
+        #Clear out the old list incase this is a reload
+        for _ in range(self.uiref.movieLibraryInfoWidget.movieLibraryList.count()):
+            self.uiref.movieLibraryInfoWidget.movieLibraryList.takeItem(0)
+
         r = self.movieLibrary.getFullDatabase()
         keys = list(r.keys())
         keys.sort()
@@ -160,6 +163,7 @@ class UIFunctions:
         self.fieldlist = OrderedDict.fromkeys(self.movieLibrary.getFieldList(), True)
 
     def updateLibraryDisplay(self, newitem, _, widget):
+        if newitem is None: return #Not sure whats up here
         data = newitem.data(QtCore.Qt.UserRole)
         #0,dbdata["title"]
         #1,dbdata["directors"]

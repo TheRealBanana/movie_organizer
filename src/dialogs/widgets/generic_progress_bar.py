@@ -108,7 +108,7 @@ class genericProgressDialog(QtWidgets.QDialog):
 
 
     def detailsButtonPressed(self):
-        print("DETAILSBUTTON")
+        #print("DETAILSBUTTON")
         if self.showingDetails is False:
             self.detailsTextOutput.show()
             #Resize our progressbar dialog to accommodate the details output widget
@@ -133,6 +133,6 @@ class genericProgressDialog(QtWidgets.QDialog):
         self.cancelButton.setText("Close")
 
     def closeEvent(self, QCloseEvent):
-        print("CLOSEEVENT")
+        #print("CLOSEEVENT")
         self.closableDialogClosing.emit()
         QCloseEvent.accept()

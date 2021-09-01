@@ -33,6 +33,10 @@ def checktype(obj):
 
 class getDbCursor(object):
     def __init__(self, dbpath, dbmutex, contype='r'):
+        #We can either wait for it or just error out. Since I don't know if this will ever be called Its better to error.
+        #At least then I know it happened.
+        if dbmutex is True:
+            raise(Exception("Given database mutex is already in-use."))
         self.dbpath = dbpath
         self.dbmutex = dbmutex
         self.contype = contype
@@ -88,6 +92,7 @@ class MovieLibrary:
                                  "cover_url TEXT,"
                                  "playcount INTEGER,"
                                  "lastplay TEXT,"
+                                 "filename TEXT,"
                                  "filelocation TEXT,"
                                  "imdb_id TEXT,"
                                  "imdb_rating TEXT,"
@@ -108,7 +113,7 @@ class MovieLibrary:
                 checktype(moviedata)
                 #dbcursor.execute("INSERT INTO movie_data VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (*moviedata.values(),))
                 #TODO make separate columns for the movie title and filenames
-                dbcursor.execute("INSERT INTO movie_data VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                dbcursor.execute("INSERT INTO movie_data VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                                  (moviedata["title"],
                                   str(moviedata["directors"]),
                                   str(moviedata["writers"]),
@@ -120,6 +125,7 @@ class MovieLibrary:
                                   moviedata["coverurl"],
                                   moviedata["playcount"],
                                   moviedata["lastplay"],
+                                  moviedata["filename"],
                                   moviedata["filelocation"],
                                   moviedata["imdb_id"],
                                   moviedata["imdb_rating"],

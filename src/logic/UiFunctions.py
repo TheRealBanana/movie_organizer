@@ -172,12 +172,13 @@ class UIFunctions:
         #8,dbdata["coverurl"]
         #9,dbdata["playcount"]
         #10,dbdata["lastplay"]
-        #11,dbdata["filelocation"]
-        #12,dbdata["imdb_id"]
-        #13,dbdata["imdb_rating"]
-        #14,dbdata["rating"]
-        #15,dbdata["extra1"]
-        #16,dbdata["extra2"]
+        #11,dbdata["filename"]
+        #12,dbdata["filelocation"]
+        #13,dbdata["imdb_id"]
+        #14,dbdata["imdb_rating"]
+        #15,dbdata["rating"]
+        #16,dbdata["extra1"]
+        #17,dbdata["extra2"]
         #Format data for display:
         #most stuff is ok just the lists need to be adjusted
         for i, d in enumerate(data):
@@ -200,6 +201,7 @@ class UIFunctions:
 <b>COVER_URL:</b>  %s<br><br>
 <b>PLAYCOUNT:</b>  %s<br><br>
 <b>LASTPLAY:</b>  %s<br><br>
+<b>FILENAME:</b>  %s<br><br>
 <b>FILELOCATION:</b>  %s<br><br>
 <b>IMDB_ID:</b>  %s<br><br>
 <b>IMDB_RATING:</b>  %s<br><br>

@@ -149,6 +149,7 @@ class imdbInfoGrabber(QObject):
                     dbdata["coverurl"] = ""
                     dbdata["playcount"] = 0
                     dbdata["lastplay"] = ""
+                    dbdata["filename"] = fname
                     dbdata["filelocation"] = fpath
                     dbdata["imdb_id"] = result.movieID
                     dbdata["imdb_rating"] = movie_data["rating"] if "rating" in movie_data else -1

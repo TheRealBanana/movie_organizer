@@ -97,6 +97,7 @@ class MovieLibrary:
                                  "imdb_id TEXT,"
                                  "imdb_rating TEXT,"
                                  "rating INTEGER,"
+                                 "year INTEGER,"
                                  "extra1 TEXT,"
                                  "extra2 TEXT"
                                  ")")
@@ -113,7 +114,7 @@ class MovieLibrary:
                 checktype(moviedata)
                 #dbcursor.execute("INSERT INTO movie_data VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (*moviedata.values(),))
                 #TODO make separate columns for the movie title and filenames
-                dbcursor.execute("INSERT INTO movie_data VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                dbcursor.execute("INSERT INTO movie_data VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                                  (moviedata["title"],
                                   str(moviedata["directors"]),
                                   str(moviedata["writers"]),
@@ -130,6 +131,7 @@ class MovieLibrary:
                                   moviedata["imdb_id"],
                                   moviedata["imdb_rating"],
                                   moviedata["rating"],
+                                  moviedata["year"],
                                   moviedata["extra1"],
                                   moviedata["extra2"]))
 

@@ -181,8 +181,9 @@ class UIFunctions:
         #13,dbdata["imdb_id"]
         #14,dbdata["imdb_rating"]
         #15,dbdata["rating"]
-        #16,dbdata["extra1"]
-        #17,dbdata["extra2"]
+        #16,dbdata["year"]
+        #17,dbdata["extra1"]
+        #18,dbdata["extra2"]
         #Format data for display:
         #most stuff is ok just the lists need to be adjusted
         for i, d in enumerate(data):
@@ -210,6 +211,7 @@ class UIFunctions:
 <b>IMDB_ID:</b>  %s<br><br>
 <b>IMDB_RATING:</b>  %s<br><br>
 <b>RATING:</b>  %s<br><br>
+<b>YEAR:</b>  %s<br><br>
 <b>EXTRA1:</b>  %s<br><br>
 <b>EXTRA2:</b>  %s<br><br>
 """ % (*data,)

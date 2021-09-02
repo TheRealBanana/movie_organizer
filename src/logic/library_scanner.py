@@ -9,7 +9,7 @@ import os
 import os.path
 from difflib import SequenceMatcher
 # Using a rather low match ratio just to weed out the completely wrong results but try to keep partial title matches (might catch on sequels tho)
-MASTER_RATIO = 0.75
+MASTER_RATIO = 0.85
 
 
 IGNORE_FOLDERS = ["ZZZZZZZZZZZZZZZZ"]
@@ -68,7 +68,7 @@ def get_person_names(personlist):
 
     return namelist
 
-def filterImdbResults(ia, results_list):
+def filterImdbResults(ia, results_list, movieyear):
     #Filter out non-movie results and sort by a given data key
     outlist = []
     for result in results_list:
@@ -82,9 +82,13 @@ def filterImdbResults(ia, results_list):
         if "rating" not in result.extradata:
             result.extradata["rating"] = 0
         if "runtimes" not in result.extradata:
-            print("NOTHERE")
+            #print("NOTHERE")
             result.extradata["runtimes"] = [0]
-
+        if "year" not in result.extradata:
+            result.extradata["year"] = 0
+            if abs(int(result.extradata["year"]) - int(movieyear)) > 2:
+                print("YEARSKIP")
+                continue
         outlist.append(result)
     return sorted(outlist, key=lambda m: m.extradata["rating"], reverse=True)
 
@@ -136,7 +140,7 @@ class imdbInfoGrabber(QObject):
                 #self.progressUpdate.emit("Searching IMDb for '%s %s'" % (movietitle, movieyear))
                 #searchdata = ia.search_movie("%s %s" % (movietitle, movieyear))
                 self.progressUpdate.emit("Searching IMDb for '%s'" % movietitle)
-                searchdata = filterImdbResults(ia, ia.search_movie("%s" % movietitle, results=1000)) # Limit the number of results to 1000
+                searchdata = filterImdbResults(ia, ia.search_movie("%s" % movietitle, results=1000), movieyear) # Limit the number of results to 1000
                 #searchdata = []
                 #sleep(3)
                 if len(searchdata) == 0:
@@ -144,8 +148,7 @@ class imdbInfoGrabber(QObject):
                 #Try and find the one that has a matching year, best we can do to be sure
                 for result in searchdata:
                     if self.stopping: return
-                    #Filter out wrong year results
-                    if "startYear" in result.data and abs(int(result.data["startYear"]) - int(movieyear)) >= 1: continue
+
                     self.progressUpdate.emit("Found IMDb ID for %s:  %s" % (movietitle, result.movieID))
                     movie_data = result.extradata
                     #Build up our dictionary to emit
@@ -190,6 +193,7 @@ class imdbInfoGrabber(QObject):
                     dbdata["imdb_id"] = result.movieID
                     dbdata["imdb_rating"] = movie_data["rating"] if "rating" in movie_data else -1
                     dbdata["rating"] = 0
+                    dbdata["year"] = movie_data["year"]
                     dbdata["extra1"] = ""
                     dbdata["extra2"] = ""
                     self.progressUpdate.emit("Found good IMDb data for %s with id %s" % (fname, result.movieID))

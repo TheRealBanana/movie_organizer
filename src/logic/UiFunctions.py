@@ -45,6 +45,7 @@ class UIFunctions:
         #self.fieldlist = OrderedDict.fromkeys(self.movieLibrary.getFieldList(), True)
         self.fieldlist = None
         self.loadLibraryIntoGui()
+        self.guimods()
 
     def setupConnections(self):
         self.uiref.actionScan_Media_Collection.triggered.connect(self.startLibraryScan)
@@ -52,6 +53,15 @@ class UIFunctions:
         self.uiref.movieLibraryInfoWidget.movieSelectionChanged.connect(self.updateLibraryDisplay)
         self.uiref.newSearchParameterButton.clicked.connect(self.newSearchParameterButtonPressed)
         self.uiref.searchButton.clicked.connect(self.searchButtonPressed)
+        self.uiref.searchTabWidget.tabCloseRequested['int'].connect(self.closeSearchTabPressed)
+
+    #A place for any dynamic modifications of the GUI.
+    def guimods(self):
+        #Remove close button from main search tab
+        self.uiref.searchTabWidget.tabBar().tabButton(0, QtWidgets.QTabBar.RightSide).resize(0,0)
+
+    def closeSearchTabPressed(self, idx):
+        self.uiref.searchTabWidget.removeTab(idx)
 
     def searchButtonPressed(self):
         #Get a list of search parameters
@@ -67,6 +77,8 @@ class UIFunctions:
             params.append(querystr)
         #TODO - I don't like sending over the specific query string from here.
         #TODO - That should really be something movie_library handles on its own.
+        if len(params) == 1: #Nothing added to the query string, dont do anything
+            return
         results = self.movieLibrary._SEARCH("".join(params))
         #Now create a new search query tab and populate the results
         movieinfowidget = movieLibraryInfoWidget(self.uiref.searchTabWidget)
@@ -79,7 +91,7 @@ class UIFunctions:
             listitem.setData(QtCore.Qt.UserRole, d)
             listitem.setToolTip(str(d[11]))
             movieinfowidget.movieLibraryList.addItem(listitem)
-        self.uiref.searchTabWidget.addTab(movieinfowidget, "SEARCH RESULTS N")
+        self.uiref.searchTabWidget.addTab(movieinfowidget, "SEARCH RESULTS (%d)" % len(results))
         self.uiref.searchTabWidget.setCurrentWidget(movieinfowidget)
 
 
@@ -190,7 +202,7 @@ class UIFunctions:
             if isinstance(d, list):
                 #Actors lists need special care
                 if isinstance(d[0], dict):
-                    data[i] = "<br>".join(["{name} as {character}".format(**r) for r in d])
+                    data[i] = "<br>".join(["{name} as {character}".format(**r) for r in d if isinstance(r, dict)])
                 else:
                     data[i] = ", ".join(d)
         displaytext = """SELECTED_MOVIE_DATA: <br><br>

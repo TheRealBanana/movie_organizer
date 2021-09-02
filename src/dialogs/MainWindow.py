@@ -39,6 +39,7 @@ class Ui_MainWindow(object):
         self.mainSearchTabGridLayout = QtWidgets.QGridLayout(self.mainSearchTab)
         self.mainSearchTabGridLayout.setObjectName("mainSearchTabGridLayout")
         self.searchTabWidget = QtWidgets.QTabWidget(self.mainSearchTab)
+        self.searchTabWidget.setTabsClosable(True)
         self.searchTabWidget.setObjectName("searchTabWidget")
         self.searchParametersTab = QtWidgets.QWidget()
         self.searchParametersTab.setObjectName("searchParametersTab")

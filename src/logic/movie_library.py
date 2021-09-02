@@ -146,6 +146,7 @@ class MovieLibrary:
 
     @checkDbOpen
     def checkForTitle(self, movietitle):
+        if len(movietitle) == 0 or not isinstance(movietitle, str): return False
         with getDbCursor(self.dbpath, self.dbmutex) as dbcursor:
             data = dbcursor.execute("SELECT COUNT(1) FROM movie_data WHERE title=?", (movietitle,)).fetchone()
         return bool(data[0])

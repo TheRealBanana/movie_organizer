@@ -21,7 +21,7 @@ VIDEO_EXTENSIONS=["avi", "divx", "amv", "mpg", "mpeg", "mpe", "m1v", "m2v",
                   "mkv", "webm", "ogm", "ogv", "flv", "f4v", "wmv", "rmvb",
                   "rm", "dv"]
 
-REMOVE_KEYWORDS = ["proper", "repack"]
+REMOVE_KEYWORDS = ["proper", "repack", "utorrent"]
 
 movie_title_regex = re.compile("^(.*?)[\s\.]?((?:19|20)[0-9]{2}).*?(720|1080|2160)", re.IGNORECASE)
 movie_title_regex_noyear = re.compile("^(.*)[\s\.]?((?:19|20)[0-9]{2})?.*?(720|1080|2160)", re.IGNORECASE)
@@ -54,6 +54,7 @@ def get_person_names(personlist):
         if not isinstance(p, imdb.Person.Person) or p.personID is None:
             continue
         #Is this person playing a character?
+        if not hasattr(p.currentRole, "data"): continue
         if "name" in p.currentRole.data:
             retdata = {}
             retdata["name"] = p.data["name"]
@@ -66,7 +67,6 @@ def get_person_names(personlist):
                 print(e)
                 print(p.data)
                 print(dir(p))
-
     return namelist
 
 def filterImdbResults(ia, results_list, movieyear):
@@ -122,7 +122,7 @@ class imdbInfoGrabber(QObject):
         #TODO DELETEME
         p = 0
 
-        #ia = imdb.IMDb() # Online check
+        ib = imdb.IMDb() # Online check
         ia = imdb.IMDb("s3", "sqlite:///C:/imdb_data/dbout/imdbdataset_Nov.21.2020.sqlite")
         #self.filedata[tld] = [ [filename, foldername], ...]
         for tld, files in self.filedata.items():
@@ -134,16 +134,26 @@ class imdbInfoGrabber(QObject):
 
                 fname = finfo[0]
                 fpath = finfo[1]
+                try:
+                    fname2 = re.split(os.sep+os.sep, fpath)[-1] #Get directory name. Needs escaped separator so thats why os.sep+os.sep
+                except:
+                    fname2 = ""
                 freg = movie_title_regex.search(fname)
+                freg2 = movie_title_regex.search(fname2)
                 #TODO PROPERLY FIXME This is such a bodge
                 if freg is None:
                     freg = movie_title_regex_noyear.search(fname)
+                if freg2 is None:
+                    freg2 = movie_title_regex_noyear.search(fname2)
                 movietitle = freg.group(1).replace(".", " ") # Periods mess things up
+                if freg2: movietitle2 = freg2.group(1).replace(".", " ") # Periods mess things up
+                else: movietitle2 = ""
                 for kw in REMOVE_KEYWORDS:
                     movietitle = re.sub(kw, "", movietitle, flags=re.IGNORECASE)
+                    if freg2: movietitle2 = re.sub(kw, "", movietitle2, flags=re.IGNORECASE)
                 movieyear = freg.group(2) if freg.group(2) is not None else 0
                 #Check if we already have this movie in the database
-                if self.checkexistsfunc(movietitle):
+                if self.checkexistsfunc(movietitle) or (freg2 is not None and self.checkexistsfunc(movietitle2)):
                     self.progressUpdate.emit("Skipping %s, already in database" % movietitle)
                     continue
                 #self.progressUpdate.emit("Searching IMDb for '%s %s'" % (movietitle, movieyear))
@@ -160,36 +170,55 @@ class imdbInfoGrabber(QObject):
 
                     self.progressUpdate.emit("Found IMDb ID for %s:  %s" % (movietitle, result.movieID))
                     movie_data = result.extradata
-                    #Build up our dictionary to emit
-                    dbdata = OD()
+                    #Do some basic checks to make sure this is the correct release
                     if "title" not in movie_data:
                         continue
-                    dbdata["title"] = movie_data["title"]
                     #Check if the name is close, if not dont even bother
-                    if SequenceMatcher(None, movietitle.lower(), movie_data["title"].lower()).ratio() < MASTER_RATIO:
-                        #print("title mismatch, skipping: t1: %s    t2: %s" % (movietitle, movie_data["title"]))
+                    #Some titles are being filtered because the file name doesnt include the subtitle which is in the imdb data
+                    #an example is the file title The.Naked.Gun.1988.1080p.BluRay.X264
+                    #but the full title should be The Naked Gun: From the Files of Police Squad!
+                    #
+                    #Trying both titles in case the folder name is more accurate
+                    if SequenceMatcher(None, movietitle.lower(), movie_data["title"].lower()).ratio() < MASTER_RATIO and SequenceMatcher(None, movietitle2.lower(), movie_data["title"].lower()).ratio() < MASTER_RATIO:
+                        #print("SMatcher SKIP %s   %s  -  %s" % (SequenceMatcher(None, movietitle.lower(), movie_data["title"].lower()).ratio(), movietitle.lower(), movie_data["title"].lower()))
                         continue
-
                     if "director" not in movie_data:
                         continue
-                    dbdata["directors"] = str(get_person_names(movie_data["director"]))
                     if "writer" not in movie_data:
                         continue
-                    dbdata["writers"] = str(get_person_names(movie_data["writer"]))# if "writer" in movie_data else "NO_WRITER_FOUND"
-                    dbdata["producers"] = str(get_person_names(movie_data["producer"])) if "producer" in movie_data else "NO_PRODUCER_FOUND"
-                    #Should always have a cast. If we dont this is probably the wrong entry
                     if "cast" not in movie_data:
                         continue
-                    dbdata["actors"] = str(get_person_names(movie_data["cast"]))
-                    dbdata["composers"] = str(get_person_names(movie_data["composer"])) if "composer" in movie_data else "NO_COMPOSER_FOUND"
-                    dbdata["genres"] = str(movie_data["genres"])
-                    if "runtimes" not in movie_data:
-                        continue
-                    dbdata["runtime"] = movie_data["runtimes"][0]
                     #Discard anything less than an hour long.
+                    try:
+                        movie_data["runtimes"][0] = int(movie_data["runtimes"][0])
+                    except:
+                        print("RUNTIMES PROB: %s" % movie_data["runtimes"][0])
                     if movie_data["runtimes"][0] < 60:
                         self.progressUpdate.emit("Too short a runtime, skipping id %s" % result.movieID)
                         continue
+                    #Now that we're sure, lets pull the data from imdb online. The S3 dataset has lots of problems.
+                    movie_data = ib.get_movie(result.movieID).data
+                    if "director" not in movie_data:
+                        continue
+                    if "writer" not in movie_data:
+                        continue
+                    if "cast" not in movie_data:
+                        continue
+                    if "year" not in movie_data:
+                        continue
+                    #Build up our dictionary to emit
+                    dbdata = OD()
+                    dbdata["title"] = movie_data["title"]
+                    dbdata["directors"] = str(get_person_names(movie_data["director"]))
+                    dbdata["writers"] = str(get_person_names(movie_data["writer"]))# if "writer" in movie_data else "NO_WRITER_FOUND"
+                    dbdata["producers"] = str(get_person_names(movie_data["producer"])) if "producer" in movie_data else "NO_PRODUCER_FOUND"
+                    #Should always have a cast. If we dont this is probably the wrong entry
+
+                    dbdata["actors"] = str(get_person_names(movie_data["cast"]))
+                    dbdata["composers"] = str(get_person_names(movie_data["composer"])) if "composer" in movie_data else "NO_COMPOSER_FOUND"
+                    dbdata["genres"] = str(movie_data["genres"])
+
+                    dbdata["runtime"] = movie_data["runtimes"][0]
                     #cover url isnt in the text data files so we wont be using this for now
                     #will be easy to get it manually later when we need it
                     #sizeindex = movie_data["cover url"].index("@._V1")

@@ -21,6 +21,7 @@ VIDEO_EXTENSIONS=["avi", "divx", "amv", "mpg", "mpeg", "mpe", "m1v", "m2v",
                   "mkv", "webm", "ogm", "ogv", "flv", "f4v", "wmv", "rmvb",
                   "rm", "dv"]
 
+REMOVE_KEYWORDS = ["proper", "repack"]
 
 movie_title_regex = re.compile("^(.*?)[\s\.]?((?:19|20)[0-9]{2}).*?(720|1080|2160)", re.IGNORECASE)
 movie_title_regex_noyear = re.compile("^(.*)[\s\.]?((?:19|20)[0-9]{2})?.*?(720|1080|2160)", re.IGNORECASE)
@@ -86,10 +87,16 @@ def filterImdbResults(ia, results_list, movieyear):
             result.extradata["runtimes"] = [0]
         if "year" not in result.extradata:
             result.extradata["year"] = 0
-            if abs(int(result.extradata["year"]) - int(movieyear)) > 2:
-                print("YEARSKIP")
-                continue
-        outlist.append(result)
+        if isinstance(result.extradata["year"], str):
+            try:
+                result.extradata["year"] = int(result.extradata["year"][:4])
+            except:
+                result.extradata["year"] = 0
+        if abs(int(result.extradata["year"]) - int(movieyear)) > 2:
+            #print("YEARSKIP")
+            continue
+        else:
+            outlist.append(result)
     return sorted(outlist, key=lambda m: m.extradata["rating"], reverse=True)
 
 class imdbInfoGrabber(QObject):
@@ -132,6 +139,8 @@ class imdbInfoGrabber(QObject):
                 if freg is None:
                     freg = movie_title_regex_noyear.search(fname)
                 movietitle = freg.group(1).replace(".", " ") # Periods mess things up
+                for kw in REMOVE_KEYWORDS:
+                    movietitle = re.sub(kw, "", movietitle, flags=re.IGNORECASE)
                 movieyear = freg.group(2) if freg.group(2) is not None else 0
                 #Check if we already have this movie in the database
                 if self.checkexistsfunc(movietitle):
@@ -158,7 +167,7 @@ class imdbInfoGrabber(QObject):
                     dbdata["title"] = movie_data["title"]
                     #Check if the name is close, if not dont even bother
                     if SequenceMatcher(None, movietitle.lower(), movie_data["title"].lower()).ratio() < MASTER_RATIO:
-                        print("title mismatch, skipping: t1: %s    t2: %s" % (movietitle, movie_data["title"]))
+                        #print("title mismatch, skipping: t1: %s    t2: %s" % (movietitle, movie_data["title"]))
                         continue
 
                     if "director" not in movie_data:

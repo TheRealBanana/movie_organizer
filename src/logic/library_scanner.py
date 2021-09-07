@@ -79,6 +79,7 @@ class imdbInfoGrabber(QObject):
     newTitleData = pyqtSignal(dict)
     workFinished = pyqtSignal()
     progressUpdate = pyqtSignal(str)
+    processingFile = pyqtSignal()
 
     def __init__(self, filedata, ithread, checkFunc, parent=None):
         super(imdbInfoGrabber, self).__init__(parent)
@@ -149,6 +150,9 @@ class imdbInfoGrabber(QObject):
 
             for finfo in files:
                 if self.stopping: return
+
+                #Indicate we are checking another file by updating the progress bar
+                self.processingFile.emit()
 
                 fname = finfo[0]
                 fpath = finfo[1]
@@ -223,17 +227,49 @@ class imdbInfoGrabber(QObject):
                     if "year" not in movie_data:
                         continue
                     #Build up our dictionary to emit
+                    #IMDB is so annoying with their inconsistent key names.
+                    #sometimes its a plural word, sometimes its not. Sometimes its under a completely different name entirely.
+                    #Movies with multiple writers still only have one key: writer
+                    #on the other hand, producers is always plural even if theres only one.
+                    #Now I'm left wondering if there is some movie out there where director has an s at the end
+                    #or producers doesn't.
                     dbdata = OD()
                     dbdata["title"] = movie_data["title"]
-                    dbdata["directors"] = str(get_person_names(movie_data["director"]))
-                    dbdata["writers"] = str(get_person_names(movie_data["writer"]))# if "writer" in movie_data else "NO_WRITER_FOUND"
-                    dbdata["producers"] = str(get_person_names(movie_data["producer"])) if "producer" in movie_data else "NO_PRODUCER_FOUND"
+                    if "director" in movie_data:
+                        dbdata["directors"] = str(get_person_names(movie_data["director"]))
+                    elif "directors" in movie_data:
+                        dbdata["directors"] = str(get_person_names(movie_data["directors"]))
+                    else:
+                        dbdata["directors"] = "NO_DIRECTOR_FOUND"
+                    if "writer" in movie_data:
+                        dbdata["writers"] = str(get_person_names(movie_data["writer"]))
+                    elif "writers" in movie_data:
+                        dbdata["writers"] = str(get_person_names(movie_data["writers"]))
+                    else:
+                        dbdata["writers"] = "NO_WRITER_FOUND"
+                    dbdata["producers"] = str(get_person_names(movie_data["producers"])) if "producers" in movie_data else "NO_PRODUCER_FOUND"
+
+                    #Just to check, I dont want to add if they arent needed but I have no idea
+                    if "producer" in movie_data:
+                        print("---PRODUCER---  %s" % dbdata["title"])
+                    if "composer" in movie_data:
+                        print("---COMPOSER---  %s" % dbdata["title"])
+
                     #Should always have a cast. If we dont this is probably the wrong entry
 
                     dbdata["actors"] = str(get_person_names(movie_data["cast"]))
-                    dbdata["composers"] = str(get_person_names(movie_data["composer"])) if "composer" in movie_data else "NO_COMPOSER_FOUND"
-                    dbdata["genres"] = str(movie_data["genres"])
+                    #Sometimes composers is actually labeled something else so we combine them all
+                    #Gotta love the inconsistent data in the IMDb
+                    dbdata["composers"] = []
+                    if "music department" in movie_data:
+                        dbdata["composers"] += get_person_names(movie_data["music department"])
+                    if "composers" in movie_data:
+                        dbdata["composers"] += get_person_names(movie_data["composers"])
+                    if "composer" in movie_data:
+                        dbdata["composers"] += get_person_names(movie_data["composer"])
+                    if len(dbdata["composers"]) == 0: dbdata["composers"] = "NO_COMPOSER_FOUND"
 
+                    dbdata["genres"] = str(movie_data["genres"])
                     dbdata["runtime"] = movie_data["runtimes"][0]
                     #cover url isnt in the text data files so we wont be using this for now
                     #will be easy to get it manually later when we need it
@@ -392,10 +428,10 @@ class LibraryScanner(QObject):
 
     def updateImdbProgressBar(self):
         oldlabel = str(self.progressbar.progressLabel.text())
-        oldcount = int(re.search("%\]\s+([0-9]{1,10})\s+", oldlabel).group(1))
+        oldcount = int(re.search("%\]\s+(-?[0-9]{1,10})\s+", oldlabel).group(1))
         newcount = oldcount + 1
-        perc = float(newcount)/float(self.filecount) * 100
-        progresslabel = "[%.1f%%] %s titles added to database... " % (perc, newcount)
+        perc = newcount/self.filecount * 100
+        progresslabel = "[%d%%] %s files processed - %s titles added to database... " % (perc, newcount, self.imdbsuccessfuladd)
         self.progressbar.progressBar.setValue(newcount)
         self.progressbar.progressLabel.setText(progresslabel)
 
@@ -445,6 +481,7 @@ class LibraryScanner(QObject):
         self.imdbworker.newTitleData.connect(self.imdbThreadUpdateCallback)
         self.imdbworker.workFinished.connect(self.imdbThreadFinishedCallback)
         self.imdbworker.progressUpdate.connect(self.updateProgressbarDetails)
+        self.imdbworker.processingFile.connect(self.updateImdbProgressBar)
         #ithread.finished.connect(self.imdbThreadFinishedCallback)
         ithread.start()
         #self.updateDisplayRequested.emit()
@@ -452,15 +489,15 @@ class LibraryScanner(QObject):
         self.progressbar.progressBar.setMaximum(self.filecount)
         self.progressbar.progressBar.setValue(0)
         self.progressbar.setWindowTitle("Retrieving IMDB information for found titles...")
-        progresslabel = "[%.1f%%] %s titles added to database... " % (0.0, 0)
+        progresslabel = "[%d%%] %s files processed - %s titles added to database... " % (0, -1, 0)
         self.progressbar.progressLabel.setText(progresslabel)
 
 
     def imdbThreadUpdateCallback(self, dbdata):
         self.libref.addMovie(dbdata)
-        print("UPDATECALL %s " % self.imdbsuccessfuladd)
-        self.updateImdbProgressBar()
+        #print("UPDATECALL %s " % self.imdbsuccessfuladd)
         self.imdbsuccessfuladd += 1
+        self.updateImdbProgressBar()
 
     def imdbThreadFinishedCallback(self):
         self.imdbworker.stopping = True

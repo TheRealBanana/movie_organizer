@@ -215,7 +215,7 @@ class UIFunctions:
         #most stuff is ok just the lists need to be adjusted
         listdata = list(data.values())
         for i, d in enumerate(listdata):
-            if isinstance(d, list):
+            if isinstance(d, list) and len(d) > 0:
                 #Actors lists need special care
                 if isinstance(d[0], dict):
                     listdata[i] = "<br>".join(["{name} as {character}".format(**r) for r in d if isinstance(r, dict)])

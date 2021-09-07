@@ -113,7 +113,7 @@ class genericProgressDialog(QtWidgets.QDialog):
             self.detailsTextOutput.show()
             #Resize our progressbar dialog to accommodate the details output widget
             self.setMaximumSize(QtCore.QSize(16777215, 325))
-            self.resize(500, 325)
+            self.resize(self.width(), 325)
             #Modify the details button to change things back
             self.detailsButton.setText("Details <<")
             self.showingDetails = True
@@ -122,7 +122,7 @@ class genericProgressDialog(QtWidgets.QDialog):
             #Hide the details.
             self.detailsTextOutput.hide()
             self.setMaximumSize(QtCore.QSize(16777215, 123))
-            self.resize(500, 123)
+            self.resize(self.width(), 123)
             #Reset the button
             self.detailsButton.setText("Details >>")
             self.showingDetails = False

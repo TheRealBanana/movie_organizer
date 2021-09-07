@@ -54,11 +54,22 @@ class UIFunctions:
         self.uiref.newSearchParameterButton.clicked.connect(self.newSearchParameterButtonPressed)
         self.uiref.searchButton.clicked.connect(self.searchButtonPressed)
         self.uiref.searchTabWidget.tabCloseRequested['int'].connect(self.closeSearchTabPressed)
+        self.uiref.movieLibraryInfoWidget.libraryStarRating.starRatingChanged['int'].connect(self.starRatingChanged)
 
     #A place for any dynamic modifications of the GUI.
     def guimods(self):
         #Remove close button from main search tab
         self.uiref.searchTabWidget.tabBar().tabButton(0, QtWidgets.QTabBar.RightSide).resize(0,0)
+
+    def starRatingChanged(self, rating):
+        curitem = self.uiref.movieLibraryInfoWidget.movieLibraryList.currentItem()
+        if curitem is None:
+            return
+        curmoviedata = curitem.data(QtCore.Qt.UserRole)
+        curmoviedata[15] = rating
+        self.movieLibrary.updateMovieStarRating(curmoviedata[0], rating)
+        curitem.setData(QtCore.Qt.UserRole, curmoviedata)
+
 
     def closeSearchTabPressed(self, idx):
         self.uiref.searchTabWidget.removeTab(idx)
@@ -173,6 +184,8 @@ class UIFunctions:
             self.uiref.movieLibraryInfoWidget.movieLibraryList.addItem(listitem)
         #TODO The fieldlist shouldnt ever update dynamically but if we ever decide to this will probably break
         self.fieldlist = OrderedDict.fromkeys(self.movieLibrary.getFieldList(), True)
+        #Update library tab title to include library size
+        self.uiref.mainTabWidget.setTabText(self.uiref.mainTabWidget.indexOf(self.uiref.movieLibraryTab), "Movie Library (%d)" % len(keys))
 
     def updateLibraryDisplay(self, newitem, _, widget):
         if newitem is None: return #Not sure whats up here
@@ -196,6 +209,8 @@ class UIFunctions:
         #16,dbdata["year"]
         #17,dbdata["extra1"]
         #18,dbdata["extra2"]
+        #Update star rating widget
+        self.uiref.movieLibraryInfoWidget.libraryStarRating.starClickedUpdate(data[15], emit=False)
         #Format data for display:
         #most stuff is ok just the lists need to be adjusted
         for i, d in enumerate(data):

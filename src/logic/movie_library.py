@@ -36,6 +36,7 @@ class getDbCursor(object):
         #We can either wait for it or just error out. Since I don't know if this will ever be called Its better to error.
         #At least then I know it happened.
         if dbmutex is True:
+            #TODO Maybe we just wait for the mutex to become available and only raise an exception after a set time
             raise(Exception("Given database mutex is already in-use."))
         self.dbpath = dbpath
         self.dbmutex = dbmutex
@@ -180,6 +181,12 @@ class MovieLibrary:
         for c in data:
             fieldlist.append(c[1])
         return fieldlist
+
+    @checkDbOpen
+    def updateMovieStarRating(self, movietitle, starcount):
+        if self.checkForTitle(movietitle):
+            with getDbCursor(self.dbpath, self.dbmutex, "w") as dbcursor:
+                dbcursor.execute("UPDATE movie_data set rating=? WHERE title=?", (starcount, movietitle))
 
     #TODO bare searching with a query string is haphazard at best
     def _SEARCH(self, querystr):

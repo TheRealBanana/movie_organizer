@@ -10,8 +10,10 @@ class StarButton(QtWidgets.QPushButton):
         self.starClicked.emit(self.starnum)
 
 class starRatingWidget(QtWidgets.QWidget):
+    starRatingChanged = QtCore.pyqtSignal(int)
     def __init__(self, parent=None):
         super(starRatingWidget, self).__init__(parent)
+        self.currentRating = 0
         self.yellowStar = QtGui.QIcon()
         self.yellowStar.addPixmap(QtGui.QPixmap("icons/yellow_star.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.greyStar = QtGui.QIcon()
@@ -103,11 +105,16 @@ class starRatingWidget(QtWidgets.QWidget):
         self.ratingStar_4.starClicked.connect(self.starClickedUpdate)
         self.ratingStar_5.starClicked.connect(self.starClickedUpdate)
 
-    def starClickedUpdate(self, staridx):
+    def starClickedUpdate(self, staridx, emit=True):
+        #Clicking the current star rating allows you to unrate a movie
+        if self.currentRating ==  staridx and emit:
+            staridx = 0
         #Turn all stars before this to yellow
         for s in self.starlist[:staridx]:
             s.setIcon(self.yellowStar)
         #and all stars after to grey
         for s in self.starlist[staridx:]:
             s.setIcon(self.greyStar)
-
+        self.currentRating = staridx
+        #emit a signal for this change so the database can be updated
+        if emit: self.starRatingChanged.emit(staridx)

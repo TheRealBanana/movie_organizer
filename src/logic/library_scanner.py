@@ -21,7 +21,7 @@ VIDEO_EXTENSIONS=["avi", "divx", "amv", "mpg", "mpeg", "mpe", "m1v", "m2v",
                   "mkv", "webm", "ogm", "ogv", "flv", "f4v", "wmv", "rmvb",
                   "rm", "dv"]
 
-REMOVE_KEYWORDS = ["proper", "repack", "utorrent"]
+REMOVE_KEYWORDS = ["proper", "repack", "utorrent", "unrated"]
 
 movie_title_regex = re.compile("^(.*?)[\s\.]?((?:19|20)[0-9]{2}).*?(720|1080|2160)", re.IGNORECASE)
 movie_title_regex_noyear = re.compile("^(.*)[\s\.]?((?:19|20)[0-9]{2})?.*?(720|1080|2160)", re.IGNORECASE)
@@ -62,42 +62,15 @@ def get_person_names(personlist):
             namelist.append(retdata)
         else:
             try:
-                namelist.append(p.data["name"])
+                retdata = {}
+                retdata["name"] = p.data["name"]
+                retdata["character"] = "NO_CHARACTER_NAME"
+                namelist.append(retdata)
             except Exception as e:
                 print(e)
                 print(p.data)
                 print(dir(p))
     return namelist
-
-def filterImdbResults(ia, results_list, movieyear):
-    #Filter out non-movie results and sort by a given data key
-    outlist = []
-    for result in results_list:
-        # Allow some fuzz. Some of my collection has the year off by one or two compared to imdb
-        # Should prevent the issue I was having with weird same titles from decades later or earlier
-        # Sometimes the wrong results are still only a year difference. Just hope the first result is ours. :/
-        if ("kind" in result.data and result.data["kind"] != "movie") or \
-                result.movieID is None:
-            continue
-        result.extradata = ia.get_movie(result.movieID).data
-        if "rating" not in result.extradata:
-            result.extradata["rating"] = 0
-        if "runtimes" not in result.extradata:
-            #print("NOTHERE")
-            result.extradata["runtimes"] = [0]
-        if "year" not in result.extradata:
-            result.extradata["year"] = 0
-        if isinstance(result.extradata["year"], str):
-            try:
-                result.extradata["year"] = int(result.extradata["year"][:4])
-            except:
-                result.extradata["year"] = 0
-        if abs(int(result.extradata["year"]) - int(movieyear)) > 2:
-            #print("YEARSKIP")
-            continue
-        else:
-            outlist.append(result)
-    return sorted(outlist, key=lambda m: m.extradata["rating"], reverse=True)
 
 class imdbInfoGrabber(QObject):
     newTitleData = pyqtSignal(dict)
@@ -117,6 +90,48 @@ class imdbInfoGrabber(QObject):
         #Normally this would risk double emiting workFinished which causes all sorts of weird issues
         #We get away with this because its our only thread and we can do special things to mitigate the issue.
         self.workFinished.emit()
+
+
+    def filterImdbResults(self, ia, results_list, movieyear):
+        #Filter out non-movie results and sort by a given data key
+        outlist = []
+        for result in results_list:
+            #Now that we have the title as it appears in the IMDB we can do another check against our own db
+            #Some titles change a small amount between the file name and the imdb but the final title in our db
+            #comes from the imdb title so this is the best and final check.
+            #Check if we already have this movie in the database
+
+
+            # Allow some fuzz. Some of my collection has the year off by one or two compared to imdb
+            # Should prevent the issue I was having with weird same titles from decades later or earlier
+            # Sometimes the wrong results are still only a year difference. Just hope the first result is ours. :/
+            if ("kind" in result.data and result.data["kind"] != "movie") or \
+                    result.movieID is None:
+                continue
+            result.extradata = ia.get_movie(result.movieID).data
+            if "title" not in result.extradata:
+                continue
+            if self.checkexistsfunc(result.extradata["title"]):
+                self.progressUpdate.emit("Skipping2 %s, already in database" % result.extradata["title"])
+                continue
+            if "rating" not in result.extradata:
+                result.extradata["rating"] = 0
+            if "runtimes" not in result.extradata:
+                #print("NOTHERE")
+                result.extradata["runtimes"] = [0]
+            if "year" not in result.extradata:
+                result.extradata["year"] = 0
+            if isinstance(result.extradata["year"], str):
+                try:
+                    result.extradata["year"] = int(result.extradata["year"][:4])
+                except:
+                    result.extradata["year"] = 0
+            if abs(int(result.extradata["year"]) - int(movieyear)) > 1:
+                #print("YEARSKIP")
+                continue
+            else:
+                outlist.append(result)
+        return sorted(outlist, key=lambda m: m.extradata["rating"], reverse=True)
 
     def getInfo(self):
         #TODO DELETEME
@@ -159,7 +174,7 @@ class imdbInfoGrabber(QObject):
                 #self.progressUpdate.emit("Searching IMDb for '%s %s'" % (movietitle, movieyear))
                 #searchdata = ia.search_movie("%s %s" % (movietitle, movieyear))
                 self.progressUpdate.emit("Searching IMDb for '%s'" % movietitle)
-                searchdata = filterImdbResults(ia, ia.search_movie("%s" % movietitle, results=1000), movieyear) # Limit the number of results to 1000
+                searchdata = self.filterImdbResults(ia, ia.search_movie("%s" % movietitle, results=1000), movieyear) # Limit the number of results to 1000
                 #searchdata = []
                 #sleep(3)
                 if len(searchdata) == 0:
@@ -171,8 +186,6 @@ class imdbInfoGrabber(QObject):
                     self.progressUpdate.emit("Found IMDb ID for %s:  %s" % (movietitle, result.movieID))
                     movie_data = result.extradata
                     #Do some basic checks to make sure this is the correct release
-                    if "title" not in movie_data:
-                        continue
                     #Check if the name is close, if not dont even bother
                     #Some titles are being filtered because the file name doesnt include the subtitle which is in the imdb data
                     #an example is the file title The.Naked.Gun.1988.1080p.BluRay.X264

@@ -53,19 +53,22 @@ def get_person_names(personlist):
     for p in personlist:
         if not isinstance(p, imdb.Person.Person) or p.personID is None:
             continue
-        #Is this person playing a character?
-        if not hasattr(p.currentRole, "data"): continue
-        if "name" in p.currentRole.data:
+        #Is this person playing multiple characters?
+        if isinstance(p.currentRole, imdb.utils.RolesList):
+            retdata = {}
+            retdata["name"] = p.data["name"]
+            retdata["character"] = p.currentRole[0]["name"]
+            for c in p.currentRole[1:]:
+                retdata["character"] += ", " + c["name"]
+            namelist.append(retdata)
+        elif "name" in p.currentRole.data:
             retdata = {}
             retdata["name"] = p.data["name"]
             retdata["character"] = p.currentRole.data["name"]
             namelist.append(retdata)
         else:
             try:
-                retdata = {}
-                retdata["name"] = p.data["name"]
-                retdata["character"] = "NO_CHARACTER_NAME"
-                namelist.append(retdata)
+                namelist.append(p.data["name"])
             except Exception as e:
                 print(e)
                 print(p.data)

@@ -66,7 +66,7 @@ class UIFunctions:
         if curitem is None:
             return
         curmoviedata = curitem.data(QtCore.Qt.UserRole)
-        curmoviedata[15] = rating
+        curmoviedata["rating"] = rating
         self.movieLibrary.updateMovieStarRating(curmoviedata[0], rating)
         curitem.setData(QtCore.Qt.UserRole, curmoviedata)
 
@@ -98,9 +98,9 @@ class UIFunctions:
         keys.sort()
         for k in keys:
             d = results[k]
-            listitem = QtWidgets.QListWidgetItem(d[0])
+            listitem = QtWidgets.QListWidgetItem(d["title"])
             listitem.setData(QtCore.Qt.UserRole, d)
-            listitem.setToolTip(str(d[11]))
+            listitem.setToolTip(str(d["filename"]))
             movieinfowidget.movieLibraryList.addItem(listitem)
         self.uiref.searchTabWidget.addTab(movieinfowidget, "SEARCH RESULTS (%d)" % len(results))
         self.uiref.searchTabWidget.setCurrentWidget(movieinfowidget)
@@ -178,12 +178,12 @@ class UIFunctions:
         keys.sort()
         for k in keys:
             d = r[k]
-            listitem = QtWidgets.QListWidgetItem(d[0])
+            listitem = QtWidgets.QListWidgetItem(d["title"])
             listitem.setData(QtCore.Qt.UserRole, d)
-            listitem.setToolTip(str(d[11]))
+            listitem.setToolTip(str(d["filename"]))
             self.uiref.movieLibraryInfoWidget.movieLibraryList.addItem(listitem)
         #TODO The fieldlist shouldnt ever update dynamically but if we ever decide to this will probably break
-        self.fieldlist = OrderedDict.fromkeys(self.movieLibrary.getFieldList(), True)
+        self.fieldlist = OrderedDict.fromkeys(self.movieLibrary.fieldlist, True)
         #Update library tab title to include library size
         self.uiref.mainTabWidget.setTabText(self.uiref.mainTabWidget.indexOf(self.uiref.movieLibraryTab), "Movie Library (%d)" % len(keys))
 
@@ -210,16 +210,17 @@ class UIFunctions:
         #17,dbdata["extra1"]
         #18,dbdata["extra2"]
         #Update star rating widget
-        self.uiref.movieLibraryInfoWidget.libraryStarRating.starClickedUpdate(data[15], emit=False)
+        self.uiref.movieLibraryInfoWidget.libraryStarRating.starClickedUpdate(data["rating"], emit=False)
         #Format data for display:
         #most stuff is ok just the lists need to be adjusted
-        for i, d in enumerate(data):
+        listdata = list(data.values())
+        for i, d in enumerate(listdata):
             if isinstance(d, list):
                 #Actors lists need special care
                 if isinstance(d[0], dict):
-                    data[i] = "<br>".join(["{name} as {character}".format(**r) for r in d if isinstance(r, dict)])
+                    listdata[i] = "<br>".join(["{name} as {character}".format(**r) for r in d if isinstance(r, dict)])
                 else:
-                    data[i] = ", ".join(d)
+                    listdata[i] = ", ".join(d)
         displaytext = """SELECTED_MOVIE_DATA: <br><br>
 
 <b><h2>TITLE:</h2></b>  <h1>%s</h1> <br><br>
@@ -241,7 +242,7 @@ class UIFunctions:
 <b>YEAR:</b>  %s<br><br>
 <b>EXTRA1:</b>  %s<br><br>
 <b>EXTRA2:</b>  %s<br><br>
-""" % (*data,)
+""" % (*listdata,)
         widget.setHtml(displaytext)
 
     def openOptionsDialog(self):

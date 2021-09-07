@@ -107,7 +107,7 @@ class starRatingWidget(QtWidgets.QWidget):
 
     def starClickedUpdate(self, staridx, emit=True):
         #Clicking the current star rating allows you to unrate a movie
-        if self.currentRating ==  staridx and emit:
+        if self.currentRating == staridx and emit:
             staridx = 0
         #Turn all stars before this to yellow
         for s in self.starlist[:staridx]:

@@ -6,7 +6,8 @@ from ast import literal_eval
 
 DATABASE_PATH = "./movielibrary.db"
 
-def fixDbData(data):
+
+def fixDbData(data, fieldlist):
     returndata = {}
     #Fix the data
     for d in data:
@@ -15,7 +16,7 @@ def fixDbData(data):
             if isinstance(s, str) and len(s) > 0 and s[0] == "[":
                 s = literal_eval(s)
             newd.append(s)
-        returndata[d[0]] = newd
+        returndata[d[0]] = OD(zip(fieldlist, newd))
     return returndata
 
 #helper objects
@@ -60,6 +61,7 @@ class MovieLibrary:
         self.dbmutex = False
         self.librarydict = {}
         self.dbpath = DBPATH
+        self.fieldlist = []
         self.checkForMoviesDb()
 
     @checkDbOpen
@@ -75,6 +77,8 @@ class MovieLibrary:
             if table_list is None or table_list[0] != "movie_data":
                 return False
             else:
+                #set the list of columns and then return true
+                self.fieldlist = self.getFieldList()
                 return True
 
         else:
@@ -156,7 +160,7 @@ class MovieLibrary:
     def getFullDatabase(self):
         with getDbCursor(self.dbpath, self.dbmutex) as dbcursor:
             alldata = dbcursor.execute("SELECT * FROM movie_data").fetchall()
-        returndata = fixDbData(alldata)
+        returndata = fixDbData(alldata, self.fieldlist)
         return returndata
 
     @checkDbOpen
@@ -191,5 +195,5 @@ class MovieLibrary:
     #TODO bare searching with a query string is haphazard at best
     def _SEARCH(self, querystr):
         with getDbCursor(self.dbpath, self.dbmutex) as dbcursor:
-            return fixDbData(dbcursor.execute(querystr).fetchall())
+            return fixDbData(dbcursor.execute(querystr).fetchall(), self.fieldlist)
 

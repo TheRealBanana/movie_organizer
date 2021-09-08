@@ -67,7 +67,7 @@ class UIFunctions:
             return
         curmoviedata = curitem.data(QtCore.Qt.UserRole)
         curmoviedata["rating"] = rating
-        self.movieLibrary.updateMovieStarRating(curmoviedata[0], rating)
+        self.movieLibrary.updateMovieStarRating(curmoviedata["title"], rating)
         curitem.setData(QtCore.Qt.UserRole, curmoviedata)
 
 

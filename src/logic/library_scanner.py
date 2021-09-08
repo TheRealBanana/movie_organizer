@@ -7,6 +7,7 @@ import imdb
 import re
 import os
 import os.path
+import unicodedata
 from difflib import SequenceMatcher
 # Using a rather low match ratio just to weed out the completely wrong results but try to keep partial title matches (might catch on sequels tho)
 MASTER_RATIO = 0.85
@@ -21,9 +22,9 @@ VIDEO_EXTENSIONS=["avi", "divx", "amv", "mpg", "mpeg", "mpe", "m1v", "m2v",
                   "mkv", "webm", "ogm", "ogv", "flv", "f4v", "wmv", "rmvb",
                   "rm", "dv"]
 
-REMOVE_KEYWORDS = ["proper", "repack", "utorrent", "unrated"]
+REMOVE_KEYWORDS = ["proper", "repack", "utorrent", "unrated", "part 1", "part 2", "2in1"]
 
-movie_title_regex = re.compile("^(.*?)[\s\.]?((?:19|20)[0-9]{2}).*?(720|1080|2160)", re.IGNORECASE)
+movie_title_regex =        re.compile("^(.*?)[\s\.]?((?:19|20)[0-9]{2}).*?(720|1080|2160)", re.IGNORECASE)
 movie_title_regex_noyear = re.compile("^(.*)[\s\.]?((?:19|20)[0-9]{2})?.*?(720|1080|2160)", re.IGNORECASE)
 #group 1 = movie title (might have trailing space)
 #group 2 = year
@@ -116,7 +117,7 @@ class imdbInfoGrabber(QObject):
             if "title" not in result.extradata:
                 continue
             if self.checkexistsfunc(result.extradata["title"]):
-                self.progressUpdate.emit("Skipping2 %s, already in database" % result.extradata["title"])
+                #self.progressUpdate.emit("Skipping2 %s, already in database" % result.extradata["title"])
                 continue
             if "rating" not in result.extradata:
                 result.extradata["rating"] = 0
@@ -198,8 +199,11 @@ class imdbInfoGrabber(QObject):
                     #an example is the file title The.Naked.Gun.1988.1080p.BluRay.X264
                     #but the full title should be The Naked Gun: From the Files of Police Squad!
                     #
+                    #Some titles in the IMDb have unicode characters that aren't
+                    #suitable for file names so we need to convert those to ascii
                     #Trying both titles in case the folder name is more accurate
-                    if SequenceMatcher(None, movietitle.lower(), movie_data["title"].lower()).ratio() < MASTER_RATIO and SequenceMatcher(None, movietitle2.lower(), movie_data["title"].lower()).ratio() < MASTER_RATIO:
+                    if SequenceMatcher(None, movietitle.lower(), unicodedata.normalize('NFKD', movie_data["title"].lower())).ratio() < MASTER_RATIO and \
+                       SequenceMatcher(None, movietitle2.lower(), unicodedata.normalize('NFKD', movie_data["title"].lower())).ratio() < MASTER_RATIO:
                         #print("SMatcher SKIP %s   %s  -  %s" % (SequenceMatcher(None, movietitle.lower(), movie_data["title"].lower()).ratio(), movietitle.lower(), movie_data["title"].lower()))
                         continue
                     if "director" not in movie_data:
@@ -426,9 +430,13 @@ class LibraryScanner(QObject):
         #print(s)
         self.progressbar.updateDetailsText(s)
 
-    def updateImdbProgressBar(self):
+    def getProgressBarFilecount(self):
         oldlabel = str(self.progressbar.progressLabel.text())
         oldcount = int(re.search("%\]\s+(-?[0-9]{1,10})\s+", oldlabel).group(1))
+        return oldcount
+
+    def updateImdbProgressBar(self):
+        oldcount = self.getProgressBarFilecount()
         newcount = oldcount + 1
         perc = newcount/self.filecount * 100
         progresslabel = "[%d%%] %s files processed - %s titles added to database... " % (perc, newcount, self.imdbsuccessfuladd)
@@ -489,7 +497,7 @@ class LibraryScanner(QObject):
         self.progressbar.progressBar.setMaximum(self.filecount)
         self.progressbar.progressBar.setValue(0)
         self.progressbar.setWindowTitle("Retrieving IMDB information for found titles...")
-        progresslabel = "[%d%%] %s files processed - %s titles added to database... " % (0, -1, 0)
+        progresslabel = "[%d%%] %s files processed - %s titles added to database... " % (0, 0, 0)
         self.progressbar.progressLabel.setText(progresslabel)
 
 
@@ -497,7 +505,6 @@ class LibraryScanner(QObject):
         self.libref.addMovie(dbdata)
         #print("UPDATECALL %s " % self.imdbsuccessfuladd)
         self.imdbsuccessfuladd += 1
-        self.updateImdbProgressBar()
 
     def imdbThreadFinishedCallback(self):
         self.imdbworker.stopping = True
@@ -508,6 +515,10 @@ class LibraryScanner(QObject):
         finalmessage = "Finished scanning library and updating IMDb information. Added %s titles to the database." % self.imdbsuccessfuladd
         self.progressbar.setFinished(finalmessage)
         self.updateDisplayRequested.emit()
+        count = self.getProgressBarFilecount()
+        progresslabel = "[%d%%] %s files processed - %s titles added to database... " % (100, count, self.imdbsuccessfuladd)
+        self.progressbar.progressBar.setValue(self.progressbar.progressBar.maximum())
+        self.progressbar.progressLabel.setText(progresslabel)
 
     def stopScan(self):
         print("STOPCALL")

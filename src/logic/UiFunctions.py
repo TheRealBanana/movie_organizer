@@ -1,3 +1,5 @@
+import re
+
 from PyQt5 import QtWidgets, QtCore
 from collections import OrderedDict
 from .movie_library import MovieLibrary
@@ -7,6 +9,9 @@ from dialogs.options_dialog import Ui_OptionsDialog
 from dialogs.widgets.searchParameterWidget import SearchParameterWidget
 from dialogs.widgets.movielibraryinfowidget import movieLibraryInfoWidget
 
+#Change the way we highlight results
+START_HIGHLIGHT = '<span style="background-color: #FFFF00">'
+END_HIGHLIGHT = "</span>"
 
 def qstringFixer(value):
     if isinstance(value, QtCore.QString):
@@ -61,6 +66,7 @@ class UIFunctions:
         #Remove close button from main search tab
         self.uiref.searchTabWidget.tabBar().tabButton(0, QtWidgets.QTabBar.RightSide).resize(0,0)
 
+
     def starRatingChanged(self, rating):
         curitem = self.uiref.movieLibraryInfoWidget.movieLibraryList.currentItem()
         if curitem is None:
@@ -75,6 +81,8 @@ class UIFunctions:
         self.uiref.searchTabWidget.removeTab(idx)
 
     def searchButtonPressed(self):
+        #For when we highlight results later
+        hlsections = {}
         #Get a list of search parameters
         sep = " AND "
         params = ["SELECT * FROM movie_data WHERE "]
@@ -86,6 +94,8 @@ class UIFunctions:
             if len(params) > 1:
                 querystr = sep + querystr
             params.append(querystr)
+            #Save this for highlighting later
+            hlsections[w.currentfield] = fielddata
         #TODO - I don't like sending over the specific query string from here.
         #TODO - That should really be something movie_library handles on its own.
         if len(params) == 1: #Nothing added to the query string, dont do anything
@@ -99,6 +109,29 @@ class UIFunctions:
         for k in keys:
             d = results[k]
             listitem = QtWidgets.QListWidgetItem(d["title"])
+            #Highlight whatever matched
+            for s in hlsections:
+                if isinstance(d[s], str):
+                    #Try and preserve capitalization
+                    origstr = re.search("(%s)" % re.escape(hlsections[s]), d[s], flags=re.IGNORECASE|re.MULTILINE).group(1)
+                    hlstr = START_HIGHLIGHT + origstr + END_HIGHLIGHT
+                    d[s] = re.sub(re.escape(hlsections[s]), hlstr, d[s], flags=re.IGNORECASE|re.MULTILINE)
+                if isinstance(d[s], list):
+                    if isinstance(d[s][0], dict): #A list of people
+                        for person in d[s]:
+                            #TODO We can match character names too. Will probably use a separate search tag for that.
+                            namematch = re.search("(%s)" % re.escape(hlsections[s]), person["name"] if isinstance(person, dict) else person, flags=re.I)
+                            if namematch is not None:
+                                hlstr = START_HIGHLIGHT + namematch.group(1) + END_HIGHLIGHT
+                                d[s][d[s].index(person)]["name"] = re.sub(re.escape(namematch.group(1)), hlstr, d[s][d[s].index(person)]["name"], flags=re.I)
+                    if isinstance(d[s][0], str):
+                        for string in d[s]:
+                            stringmatch = re.search("(%s)" % re.escape(hlsections[s]), string, flags=re.I)
+                            if stringmatch is not None:
+                                hlstr = START_HIGHLIGHT + stringmatch.group(1) + END_HIGHLIGHT
+                                d[s][d[s].index(string)] = hlstr
+
+                #print("%s - %s" % (section, type(d[section])))
             listitem.setData(QtCore.Qt.UserRole, d)
             listitem.setToolTip(str(d["filename"]))
             movieinfowidget.movieLibraryList.addItem(listitem)
@@ -112,6 +145,7 @@ class UIFunctions:
             return
         #Create a new search parameter widget and connect it to our parametersFrame
         newentrywidget = SearchParameterWidget(parent=self.uiref.parametersFrame)
+        newentrywidget.searchTemplateEntry.returnPressed.connect(self.searchButtonPressed)
         newentrywidget.removeSelfRequest.connect(self.deleteSearchParameterWidget)
         newentrywidget.searchParamFieldUpdate.connect(self.updateSearchParameterFieldList)
         newentrywidget.updateFieldList(self.fieldlist.copy())

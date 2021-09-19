@@ -1,5 +1,6 @@
 import re
 
+import imdb.Person
 from PyQt5 import QtWidgets, QtCore
 from collections import OrderedDict
 from .movie_library import MovieLibrary
@@ -86,10 +87,15 @@ class UIFunctions:
         #Get a list of search parameters
         sep = " AND "
         params = ["SELECT * FROM movie_data WHERE "]
+        querydata = {}
         for w in self.uiref.scrollAreaWidgetContents.findChildren(SearchParameterWidget):
             fielddata = w.returnData()
             if len(fielddata) == 0:
                 continue
+            #For new query system
+            if w.currentfield not in querydata:
+                querydata[w.currentfield] = []
+            querydata[w.currentfield].append(fielddata)
             querystr = "%s LIKE '%%%s%%'" % (w.currentfield, w.returnData())
             if len(params) > 1:
                 querystr = sep + querystr
@@ -100,6 +106,7 @@ class UIFunctions:
         #TODO - That should really be something movie_library handles on its own.
         if len(params) == 1: #Nothing added to the query string, dont do anything
             return
+        test = self.movieLibrary.search(querydata)
         results = self.movieLibrary._SEARCH("".join(params))
         #Now create a new search query tab and populate the results
         movieinfowidget = movieLibraryInfoWidget(self.uiref.searchTabWidget)
@@ -115,21 +122,16 @@ class UIFunctions:
                     #Try and preserve capitalization
                     origstr = re.search("(%s)" % re.escape(hlsections[s]), d[s], flags=re.IGNORECASE|re.MULTILINE).group(1)
                     hlstr = START_HIGHLIGHT + origstr + END_HIGHLIGHT
-                    d[s] = re.sub(re.escape(hlsections[s]), hlstr, d[s], flags=re.IGNORECASE|re.MULTILINE)
+                    d[s] = re.sub(re.escape(origstr), hlstr, d[s], flags=re.IGNORECASE|re.MULTILINE)
                 if isinstance(d[s], list):
-                    if isinstance(d[s][0], dict): #A list of people
-                        for person in d[s]:
-                            #TODO We can match character names too. Will probably use a separate search tag for that.
-                            namematch = re.search("(%s)" % re.escape(hlsections[s]), person["name"] if isinstance(person, dict) else person, flags=re.I)
-                            if namematch is not None:
-                                hlstr = START_HIGHLIGHT + namematch.group(1) + END_HIGHLIGHT
-                                d[s][d[s].index(person)]["name"] = re.sub(re.escape(namematch.group(1)), hlstr, d[s][d[s].index(person)]["name"], flags=re.I)
-                    if isinstance(d[s][0], str):
-                        for string in d[s]:
-                            stringmatch = re.search("(%s)" % re.escape(hlsections[s]), string, flags=re.I)
-                            if stringmatch is not None:
-                                hlstr = START_HIGHLIGHT + stringmatch.group(1) + END_HIGHLIGHT
-                                d[s][d[s].index(string)] = hlstr
+                    for idx, person in enumerate(d[s]):
+                        #TODO We can match character names too. Will probably use a separate search tag for that.
+                        namematch = re.search("(%s)" % re.escape(hlsections[s]), person["name"] if isinstance(person, dict) else person, flags=re.I)
+                        if namematch is not None:
+                            hlstr = START_HIGHLIGHT + namematch.group(1) + END_HIGHLIGHT
+                            if isinstance(person, dict): person["name"] = re.sub(re.escape(namematch.group(1)), hlstr, person["name"], flags=re.I)
+                            else: d[s][idx] = re.sub(re.escape(namematch.group(1)), hlstr, person, flags=re.I)
+
 
                 #print("%s - %s" % (section, type(d[section])))
             listitem.setData(QtCore.Qt.UserRole, d)
@@ -248,13 +250,16 @@ class UIFunctions:
         #Format data for display:
         #most stuff is ok just the lists need to be adjusted
         listdata = list(data.values())
+        #print(data["actors"])
         for i, d in enumerate(listdata):
             if isinstance(d, list) and len(d) > 0:
                 #Actors lists need special care
-                if isinstance(d[0], dict):
-                    listdata[i] = "<br>".join(["{name} as {character}".format(**r) for r in d if isinstance(r, dict)])
-                else:
-                    listdata[i] = ", ".join(d)
+                listdata[i] = ""
+                for a in d:
+                    if isinstance(a, dict):
+                        listdata[i] += "<br>%s" % "{name} as {character}".format(**a)
+                    else:
+                        listdata[i] += "<br>%s" % a
         displaytext = """SELECTED_MOVIE_DATA: <br><br>
 
 <b><h2>TITLE:</h2></b>  <h1>%s</h1> <br><br>

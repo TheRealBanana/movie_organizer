@@ -13,6 +13,7 @@ from dialogs.widgets.movielibraryinfowidget import movieLibraryInfoWidget
 #Change the way we highlight results
 START_HIGHLIGHT = '<span style="background-color: #FFFF00">'
 END_HIGHLIGHT = "</span>"
+HIGHLIGHT_SUB_REGEX = START_HIGHLIGHT + r"\1" + END_HIGHLIGHT
 
 def qstringFixer(value):
     if isinstance(value, QtCore.QString):
@@ -82,60 +83,48 @@ class UIFunctions:
         self.uiref.searchTabWidget.removeTab(idx)
 
     def searchButtonPressed(self):
-        #For when we highlight results later
-        hlsections = {}
-        #Get a list of search parameters
-        sep = " AND "
-        params = ["SELECT * FROM movie_data WHERE "]
+        #Get our search parameters
         querydata = {}
         for w in self.uiref.scrollAreaWidgetContents.findChildren(SearchParameterWidget):
             fielddata = w.returnData()
             if len(fielddata) == 0:
                 continue
-            #For new query system
-            if w.currentfield not in querydata:
-                querydata[w.currentfield] = []
-            querydata[w.currentfield].append(fielddata)
-            querystr = "%s LIKE '%%%s%%'" % (w.currentfield, w.returnData())
-            if len(params) > 1:
-                querystr = sep + querystr
-            params.append(querystr)
-            #Save this for highlighting later
-            hlsections[w.currentfield] = fielddata
-        #TODO - I don't like sending over the specific query string from here.
-        #TODO - That should really be something movie_library handles on its own.
-        if len(params) == 1: #Nothing added to the query string, dont do anything
-            return
-        test = self.movieLibrary.search(querydata)
-        results = self.movieLibrary._SEARCH("".join(params))
+            querydata[w.currentfield] = fielddata
+
+        results = self.movieLibrary.search(querydata)
+        hlsections = results.pop("hlsections")
         #Now create a new search query tab and populate the results
         movieinfowidget = movieLibraryInfoWidget(self.uiref.searchTabWidget)
         movieinfowidget.movieSelectionChanged.connect(self.updateLibraryDisplay)
-        keys = list(results.keys())
-        keys.sort()
-        for k in keys:
-            d = results[k]
-            listitem = QtWidgets.QListWidgetItem(d["title"])
+        #Go through our results and highlight any sections we searched with
+        for k, rdata in sorted(results.items(), key=lambda t: t[0].lower()):
+            listitem = QtWidgets.QListWidgetItem(rdata["title"])
             #Highlight whatever matched
-            for s in hlsections:
-                if isinstance(d[s], str):
-                    #Try and preserve capitalization
-                    origstr = re.search("(%s)" % re.escape(hlsections[s]), d[s], flags=re.IGNORECASE|re.MULTILINE).group(1)
-                    hlstr = START_HIGHLIGHT + origstr + END_HIGHLIGHT
-                    d[s] = re.sub(re.escape(origstr), hlstr, d[s], flags=re.IGNORECASE|re.MULTILINE)
-                if isinstance(d[s], list):
-                    for idx, person in enumerate(d[s]):
+            for section in hlsections:
+                if isinstance(rdata[section], str):
+                    rgx = "(%s)" % "|".join([re.escape(x) for x in hlsections[section]])
+                    rdata[section] = re.sub(rgx, HIGHLIGHT_SUB_REGEX, rdata[section], flags=re.IGNORECASE|re.MULTILINE)
+                if isinstance(rdata[section], list):
+                    for idx, string in enumerate(rdata[section]):
+                        #List could be people or genres
                         #TODO We can match character names too. Will probably use a separate search tag for that.
-                        namematch = re.search("(%s)" % re.escape(hlsections[s]), person["name"] if isinstance(person, dict) else person, flags=re.I)
+                        rgx = "(%s)" % "|".join([re.escape(x) for x in hlsections[section]])
+                        checkstr = string["name"] + " " + string["character"] if isinstance(string, dict) else string
+                        namematch = re.search(rgx, checkstr, flags=re.I)
                         if namematch is not None:
-                            hlstr = START_HIGHLIGHT + namematch.group(1) + END_HIGHLIGHT
-                            if isinstance(person, dict): person["name"] = re.sub(re.escape(namematch.group(1)), hlstr, person["name"], flags=re.I)
-                            else: d[s][idx] = re.sub(re.escape(namematch.group(1)), hlstr, person, flags=re.I)
+                            if isinstance(string, dict):
+                                string["name"] = re.sub("(%s)" % re.escape(namematch.group(1)), HIGHLIGHT_SUB_REGEX, string["name"], flags=re.I)
+                                #Highlight character names too
+                                charmatch = re.search("(%s)" % "|".join([re.escape(x) for x in hlsections[section]]), string["character"], flags=re.I)
+                                if charmatch is not None:
+                                    string["character"] = re.sub("(%s)" % re.escape(charmatch.group(1)), HIGHLIGHT_SUB_REGEX, string["character"], flags=re.I)
+                            else:
+                                rdata[section][idx] = re.sub("(%s)" % re.escape(namematch.group(1)), HIGHLIGHT_SUB_REGEX, string, flags=re.I)
 
 
                 #print("%s - %s" % (section, type(d[section])))
-            listitem.setData(QtCore.Qt.UserRole, d)
-            listitem.setToolTip(str(d["filename"]))
+            listitem.setData(QtCore.Qt.UserRole, rdata)
+            listitem.setToolTip(str(rdata["filename"]))
             movieinfowidget.movieLibraryList.addItem(listitem)
         self.uiref.searchTabWidget.addTab(movieinfowidget, "SEARCH RESULTS (%d)" % len(results))
         self.uiref.searchTabWidget.setCurrentWidget(movieinfowidget)

@@ -1,6 +1,7 @@
 import sqlite3
 import os
 import os.path
+import re
 from collections import OrderedDict as OD
 from ast import literal_eval
 
@@ -191,6 +192,44 @@ class MovieLibrary:
         if self.checkForTitle(movietitle):
             with getDbCursor(self.dbpath, self.dbmutex, "w") as dbcursor:
                 dbcursor.execute("UPDATE movie_data set rating=? WHERE title=?", (starcount, movietitle))
+
+    def search(self, querydata):
+        if not isinstance(querydata, dict):
+            return []
+        #Build up our query
+        #For when we highlight results later
+        hlsections = {}
+        #Get a list of search parameters
+        sep = " AND "
+        params = ["SELECT * FROM movie_data WHERE "]
+        for field, value in querydata.items():
+            if len(value) == 0:
+                continue
+            if field not in hlsections:
+                hlsections[field] = []
+            #Eventually I think I will make it possible to handle multiple query fields of the same field type
+            #For now an easy solution is to use a special character to delineate multiple vales for a single field
+            valuesplit = [v.strip() for v in re.split(";", value)]
+            if len(valuesplit) > 1: #Multiple values for this field
+                hlsections[field] += valuesplit
+                querystr = "(%s LIKE '%%%s%%'" % (field, valuesplit[0])
+                for w in valuesplit[1:]:
+                    ##TODO  Some fields should be or and some should be and
+                    #Would be nice to have a checkbox to decide OR or AND
+                    querystr += " or %s LIKE '%%%s%%'" % (field, w)
+                querystr += ") "
+            else:
+                #TODO Handle dates different so we can check a range of dates
+                querystr = "%s LIKE '%%%s%%'" % (field, value)
+                #Save this for highlighting later
+                hlsections[field].append(value)
+            if len(params) > 1:
+                querystr = sep + querystr
+            params.append(querystr)
+        results = self._SEARCH("".join(params))
+        results["hlsections"] = hlsections
+        return results
+
 
     #TODO bare searching with a query string is haphazard at best
     def _SEARCH(self, querystr):

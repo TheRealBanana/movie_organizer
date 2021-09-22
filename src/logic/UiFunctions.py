@@ -101,10 +101,16 @@ class UIFunctions:
             listitem = QtWidgets.QListWidgetItem(rdata["title"])
             #Highlight whatever matched
             for section in hlsections:
-                if isinstance(rdata[section], str):
+                #Handle years differently
+                if section == "year":
+                    print(hlsections[section])
+                    if rdata[section] in hlsections[section]:
+                        rdata["year"] = START_HIGHLIGHT + str(rdata["year"]) + END_HIGHLIGHT
+
+                elif isinstance(rdata[section], str):
                     rgx = "(%s)" % "|".join([re.escape(x) for x in hlsections[section]])
                     rdata[section] = re.sub(rgx, HIGHLIGHT_SUB_REGEX, rdata[section], flags=re.IGNORECASE|re.MULTILINE)
-                if isinstance(rdata[section], list):
+                elif isinstance(rdata[section], list):
                     for idx, string in enumerate(rdata[section]):
                         #List could be people or genres
                         #TODO We can match character names too. Will probably use a separate search tag for that.
@@ -120,7 +126,6 @@ class UIFunctions:
                                     string["character"] = re.sub("(%s)" % re.escape(charmatch.group(1)), HIGHLIGHT_SUB_REGEX, string["character"], flags=re.I)
                             else:
                                 rdata[section][idx] = re.sub("(%s)" % re.escape(namematch.group(1)), HIGHLIGHT_SUB_REGEX, string, flags=re.I)
-
 
                 #print("%s - %s" % (section, type(d[section])))
             listitem.setData(QtCore.Qt.UserRole, rdata)

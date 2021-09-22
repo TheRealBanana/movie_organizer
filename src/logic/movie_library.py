@@ -219,10 +219,25 @@ class MovieLibrary:
                     querystr += " or %s LIKE '%%%s%%'" % (field, w)
                 querystr += ") "
             else:
-                #TODO Handle dates different so we can check a range of dates
-                querystr = "%s LIKE '%%%s%%'" % (field, value)
-                #Save this for highlighting later
-                hlsections[field].append(value)
+                # TODO Many fields require special handling so this section will be expanding in the future.
+                #
+                if field == "year": # Runtime would benefit from a similar treatment
+                    yearrange = re.match("^([0-9]{4})[\s]*-[\s]*([0-9]{4})$", value)
+                    if yearrange is not None:
+                        yearrange = list(re.match("^([0-9]{4})[\s]*-[\s]*([0-9]{4})$", value).groups())
+                        if yearrange[0] > yearrange[1]: #Start of the range higher than the end
+                            yearrange.reverse()
+                        querystr = "%s BETWEEN %s AND %s" % (field, *yearrange)
+                        hlsections[field] += [n for n in range(int(yearrange[0]), int(yearrange[1])+1)]
+                    else:
+                        #Not a year range
+                        cleanval = re.search("([0-9]{4})", value).group(1)
+                        querystr = "%s == %s" % (field, cleanval)
+                        hlsections[field] = [cleanval]
+                else:
+                    querystr = "%s LIKE '%%%s%%'" % (field, value if value is not None else "9999") #Safe fail if the regex isnt set
+                    #Save this for highlighting later
+                    hlsections[field].append(value)
             if len(params) > 1:
                 querystr = sep + querystr
             params.append(querystr)

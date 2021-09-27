@@ -196,6 +196,7 @@ class MovieLibrary:
     def search(self, querydata):
         if not isinstance(querydata, dict):
             return []
+        andorstate = querydata.pop("ANDORSTATE")
         #Build up our query
         #For when we highlight results later
         hlsections = {}
@@ -216,7 +217,7 @@ class MovieLibrary:
                 for w in valuesplit[1:]:
                     ##TODO  Some fields should be or and some should be and
                     #Would be nice to have a checkbox to decide OR or AND
-                    querystr += " or %s LIKE '%%%s%%'" % (field, w)
+                    querystr += " %s %s LIKE '%%%s%%'" % (andorstate[field], field, w)
                 querystr += ") "
             else:
                 # TODO Many fields require special handling so this section will be expanding in the future.

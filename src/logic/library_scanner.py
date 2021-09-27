@@ -12,6 +12,8 @@ from difflib import SequenceMatcher
 # Using a rather low match ratio just to weed out the completely wrong results but try to keep partial title matches (might catch on sequels tho)
 MASTER_RATIO = 0.85
 
+S3DATASET_LOCATION = "C:\imdb_data\dbout\imdbdataset_Sept.27.2021.sqlite"
+
 
 IGNORE_FOLDERS = ["ZZZZZZZZZZZZZZZZ"]
 
@@ -143,7 +145,7 @@ class imdbInfoGrabber(QObject):
         p = 0
 
         ib = imdb.IMDb() # Online check
-        ia = imdb.IMDb("s3", "sqlite:///C:/imdb_data/dbout/imdbdataset_Nov.21.2020.sqlite")
+        ia = imdb.IMDb("s3", "sqlite:///%s" % S3DATASET_LOCATION)
         #self.filedata[tld] = [ [filename, foldername], ...]
         for tld, files in self.filedata.items():
             self.progressUpdate.emit("Checking TLD: %s" % tld)
@@ -381,6 +383,7 @@ class LibraryScanner(QObject):
         self.filecount = -1
         self.imdbsuccessfuladd = -1
         self.filelist = {}
+        self.addedvideos = []
         self.progressbar = None
 
     def startScan(self):
@@ -475,6 +478,7 @@ class LibraryScanner(QObject):
         if self.imdbworker is not None:
             self.imdbThreadFinishedCallback()
         self.imdbsuccessfuladd = 0
+        self.addedvideos = []
         #Create our worker and qthread
         ithread = QThread()
         self.imdbworker = imdbInfoGrabber(self.filelist, ithread, self.libref.checkForTitle)
@@ -503,6 +507,7 @@ class LibraryScanner(QObject):
 
     def imdbThreadUpdateCallback(self, dbdata):
         self.libref.addMovie(dbdata)
+        self.addedvideos.append(dbdata["title"])
         #print("UPDATECALL %s " % self.imdbsuccessfuladd)
         self.imdbsuccessfuladd += 1
 
@@ -514,11 +519,13 @@ class LibraryScanner(QObject):
         #change the cancel button to close since we are finished now
         finalmessage = "Finished scanning library and updating IMDb information. Added %s titles to the database." % self.imdbsuccessfuladd
         self.progressbar.setFinished(finalmessage)
-        self.updateDisplayRequested.emit()
         count = self.getProgressBarFilecount()
         progresslabel = "[%d%%] %s files processed - %s titles added to database... " % (100, count, self.imdbsuccessfuladd)
         self.progressbar.progressBar.setValue(self.progressbar.progressBar.maximum())
         self.progressbar.progressLabel.setText(progresslabel)
+        for m in self.addedvideos:
+            self.updateProgressbarDetails(m)
+
 
     def stopScan(self):
         print("STOPCALL")

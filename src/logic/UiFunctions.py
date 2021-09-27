@@ -85,11 +85,15 @@ class UIFunctions:
     def searchButtonPressed(self):
         #Get our search parameters
         querydata = {}
+        querydata["ANDORSTATE"] = {}
         for w in self.uiref.scrollAreaWidgetContents.findChildren(SearchParameterWidget):
             fielddata = w.returnData()
+            andorstate = w.andorState()
             if len(fielddata) == 0:
                 continue
-            querydata[w.currentfield] = fielddata
+            querydata[w.currentfield] = str(fielddata).strip()
+            #Include data about the AND/OR check state.
+            querydata["ANDORSTATE"][w.currentfield] = andorstate
 
         results = self.movieLibrary.search(querydata)
         hlsections = results.pop("hlsections")

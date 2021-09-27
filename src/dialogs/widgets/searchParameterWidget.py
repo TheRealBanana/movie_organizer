@@ -13,8 +13,11 @@ class SearchParameterWidget(QtWidgets.QWidget):
         self.setupWidget()
 
     def setupWidget(self):
+        #HLayout to contain our widgets
         self.searchTemplateHLayout = QtWidgets.QHBoxLayout(self)
         self.searchTemplateHLayout.setObjectName("searchTemplateHLayout")
+
+        #First widget is the dropdown to select which param to search with
         self.paramSelectionDropdown = QtWidgets.QComboBox(self)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
@@ -26,8 +29,18 @@ class SearchParameterWidget(QtWidgets.QWidget):
         self.paramSelectionDropdown.setEditable(False)
         self.paramSelectionDropdown.activated["QString"].connect(self.changedFieldType)
         self.searchTemplateHLayout.addWidget(self.paramSelectionDropdown)
-        spacerItem2 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum)
-        self.searchTemplateHLayout.addItem(spacerItem2)
+
+        #AND/OR checkbox. Multiple values can be searched for in a single field by separating them with a semicolon
+        #This checkbox controls whether we use AND or OR in our SQL query. OR'ing has been the default behavior.
+        self.andorCheckbox = QtWidgets.QCheckBox(self)
+        self.andorCheckbox.setToolTip("Checked = multiple entries for this field are AND'd together, unchecked they are OR'd together. ")
+        self.searchTemplateHLayout.addWidget(self.andorCheckbox)
+
+        #spacerItem2 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum)
+        #self.searchTemplateHLayout.addItem(spacerItem2)
+
+        #Text box entry for selected parameter. In the future this could be dynamically updated for the selected param
+        # e.g. dropdown for genre, dual input for number range w/ runtime and year
         self.searchTemplateEntry = QtWidgets.QLineEdit(self)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
@@ -41,6 +54,8 @@ class SearchParameterWidget(QtWidgets.QWidget):
         self.searchTemplateEntry.setClearButtonEnabled(True)
         self.searchTemplateEntry.setObjectName("searchTemplateEntry")
         self.searchTemplateHLayout.addWidget(self.searchTemplateEntry)
+
+        #Delete button to remove param
         self.searchTemplateRemoveButton = QtWidgets.QPushButton(self)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
@@ -58,15 +73,15 @@ class SearchParameterWidget(QtWidgets.QWidget):
         self.searchTemplateRemoveButton.setObjectName("searchTemplateRemoveButton")
         self.searchTemplateRemoveButton.clicked.connect(lambda: self.removeSelfRequest.emit(self))
         self.searchTemplateHLayout.addWidget(self.searchTemplateRemoveButton)
-        #Combobox starts on a field so we need to remove it from the list of options
-        #We could start on a blank but this is nicer. With this system I can keep pressing the add
-        #search param button and it will automatically stop adding new fields when the field list is
-        #depleted.
 
 
     def returnData(self):
         #Just simply access to our field value
         return self.searchTemplateEntry.text()
+
+    def andorState(self):
+        #return the AND/OR checkbox state
+        return "AND" if self.andorCheckbox.isChecked() else "OR"
 
     def updateFieldList(self, updatedstringlist):
         #Preserve whatever selection we had before because our model will change the indices

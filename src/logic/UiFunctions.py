@@ -107,25 +107,24 @@ class UIFunctions:
             for section in hlsections:
                 #Handle years differently
                 if section == "year":
-                    print(hlsections[section])
                     if rdata[section] in hlsections[section]:
                         rdata["year"] = START_HIGHLIGHT + str(rdata["year"]) + END_HIGHLIGHT
 
                 elif isinstance(rdata[section], str):
-                    rgx = "(%s)" % "|".join([re.escape(x) for x in hlsections[section]])
+                    rgx = "(%s)" % "|".join([re.escape(str(x)) for x in hlsections[section]])
                     rdata[section] = re.sub(rgx, HIGHLIGHT_SUB_REGEX, rdata[section], flags=re.IGNORECASE|re.MULTILINE)
                 elif isinstance(rdata[section], list):
                     for idx, string in enumerate(rdata[section]):
                         #List could be people or genres
                         #TODO We can match character names too. Will probably use a separate search tag for that.
-                        rgx = "(%s)" % "|".join([re.escape(x) for x in hlsections[section]])
+                        rgx = "(%s)" % "|".join([re.escape(str(x)) for x in hlsections[section]])
                         checkstr = string["name"] + " " + string["character"] if isinstance(string, dict) else string
                         namematch = re.search(rgx, checkstr, flags=re.I)
                         if namematch is not None:
                             if isinstance(string, dict):
                                 string["name"] = re.sub("(%s)" % re.escape(namematch.group(1)), HIGHLIGHT_SUB_REGEX, string["name"], flags=re.I)
                                 #Highlight character names too
-                                charmatch = re.search("(%s)" % "|".join([re.escape(x) for x in hlsections[section]]), string["character"], flags=re.I)
+                                charmatch = re.search("(%s)" % "|".join([re.escape(str(x)) for x in hlsections[section]]), string["character"], flags=re.I)
                                 if charmatch is not None:
                                     string["character"] = re.sub("(%s)" % re.escape(charmatch.group(1)), HIGHLIGHT_SUB_REGEX, string["character"], flags=re.I)
                             else:

@@ -210,30 +210,35 @@ class MovieLibrary:
                 hlsections[field] = []
             #Eventually I think I will make it possible to handle multiple query fields of the same field type
             #For now an easy solution is to use a special character to delineate multiple vales for a single field
+            #TODO Using both a value range and multiple values separated with a ; doesn't work at all
             valuesplit = [v.strip() for v in re.split(";", value)]
             if len(valuesplit) > 1: #Multiple values for this field
                 hlsections[field] += valuesplit
                 querystr = "(%s LIKE '%%%s%%'" % (field, valuesplit[0])
                 for w in valuesplit[1:]:
-                    ##TODO  Some fields should be or and some should be and
-                    #Would be nice to have a checkbox to decide OR or AND
                     querystr += " %s %s LIKE '%%%s%%'" % (andorstate[field], field, w)
                 querystr += ") "
             else:
-                # TODO Many fields require special handling so this section will be expanding in the future.
-                #
-                if field == "year": # Runtime would benefit from a similar treatment
-                    yearrange = re.match("^([0-9]{4})[\s]*-[\s]*([0-9]{4})$", value)
-                    if yearrange is not None:
-                        yearrange = list(re.match("^([0-9]{4})[\s]*-[\s]*([0-9]{4})$", value).groups())
-                        if yearrange[0] > yearrange[1]: #Start of the range higher than the end
-                            yearrange.reverse()
-                        querystr = "%s BETWEEN %s AND %s" % (field, *yearrange)
-                        hlsections[field] += [n for n in range(int(yearrange[0]), int(yearrange[1])+1)]
+                #Treat integers differently
+                if field in "year runtime playcount rating imdb_rating":
+                    valuerangereg = re.search("([0-9]+(?:\.[0-9]+)?)[\s]*-[\s]*([0-9]+(?:\.[0-9]+)?)", value.strip())
+                    if valuerangereg is not None:
+                        valuerange = [float(x) for x in valuerangereg.groups()]
+                        if valuerange[0] > valuerange[1]: #Start of the range higher than the end
+                            valuerange.reverse()
+                        querystr = "CAST(%s as %s) BETWEEN %s AND %s" % (field, "REAL" if field == "imdb_rating" else "INTEGER", *valuerange)
+                        #TODO CHange this to just hold the two endpoints and dynamically highlight on display
+                        hlsections[field] += [valuerange[0], valuerange[1]]
                     else:
-                        #Not a year range
-                        cleanval = re.search("([0-9]{4})", value).group(1)
-                        querystr = "%s == %s" % (field, cleanval)
+                        #Not a number range
+                        #Make sure we're just getting numbers
+                        cleanvalreg = re.search("([0-9]+)", value)
+                        if cleanvalreg is None: #Not a number at all, fallback to LIKE query
+                            cleanval = value.strip()
+                            querystr = "%s LIKE '%%%s%%'" % (field, cleanval)
+                        else:
+                            cleanval = cleanvalreg.group(1)
+                            querystr = "(%s == %s) or (%s == %s)" % (field, cleanval, field, float(cleanval))
                         hlsections[field] = [cleanval]
                 else:
                     querystr = "%s LIKE '%%%s%%'" % (field, value if value is not None else "9999") #Safe fail if the regex isnt set

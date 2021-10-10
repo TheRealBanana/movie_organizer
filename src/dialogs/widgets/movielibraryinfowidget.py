@@ -1,4 +1,4 @@
-from PyQt5 import QtCore, QtWidgets
+from PyQt5 import QtCore, QtWidgets, QtGui
 from .starratingwidget import starRatingWidget
 
 class movieLibraryInfoWidget(QtWidgets.QWidget):
@@ -28,6 +28,8 @@ class movieLibraryInfoWidget(QtWidgets.QWidget):
         self.movieLibraryInfoFrameVLayout.setObjectName("movieLibraryInfoFrameVLayout")
         self.movieInfoDisplay = QtWidgets.QTextBrowser(self.movieLibraryInfoFrame)
         self.movieInfoDisplay.setObjectName("movieInfoDisplay")
+        self.movieInfoDisplay.setOpenExternalLinks(False)
+        self.movieInfoDisplay.setOpenLinks(False)
         self.movieLibraryInfoFrameVLayout.addWidget(self.movieInfoDisplay)
         self.libraryStarRatingContainerFrame = QtWidgets.QFrame(self.movieLibraryInfoFrame)
         self.libraryStarRatingContainerFrame.setFrameShape(QtWidgets.QFrame.StyledPanel)
@@ -49,4 +51,9 @@ class movieLibraryInfoWidget(QtWidgets.QWidget):
         self.movieLibraryInfoFrameVLayout.addWidget(self.libraryStarRatingContainerFrame)
         self.horizontalLayout.addWidget(self.movieLibraryInfoFrame)
         self.movieLibraryList.currentItemChanged.connect(lambda newitem, olditem: self.movieSelectionChanged.emit(newitem, olditem, self.movieInfoDisplay))
+        self.movieInfoDisplay.anchorClicked['QUrl'].connect(self.openfile)
+
+    def openfile(self, url):
+        fixedurl = QtCore.QUrl.fromPercentEncoding(bytes(url.toString(), "utf-8"))
+        QtGui.QDesktopServices.openUrl(QtCore.QUrl.fromLocalFile(fixedurl))
 

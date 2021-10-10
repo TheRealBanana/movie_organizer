@@ -219,7 +219,7 @@ class imdbInfoGrabber(QObject):
                         movie_data["runtimes"][0] = int(movie_data["runtimes"][0])
                     except:
                         print("RUNTIMES PROB: %s" % movie_data["runtimes"][0])
-                    if movie_data["runtimes"][0] < 61:
+                    if movie_data["runtimes"][0] < 65:
                         self.progressUpdate.emit("Too short a runtime, skipping id %s" % result.movieID)
                         continue
                     #Now that we're sure, lets pull the data from imdb online. The S3 dataset has lots of problems.

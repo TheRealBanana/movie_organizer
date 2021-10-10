@@ -1,6 +1,5 @@
 import sqlite3
 import os
-import os.path
 import re
 from collections import OrderedDict as OD
 from ast import literal_eval

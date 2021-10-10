@@ -1,10 +1,11 @@
 import re
-
+from os import sep as ossep
 import imdb.Person
 from PyQt5 import QtWidgets, QtCore
 from collections import OrderedDict
 from .movie_library import MovieLibrary
 from .library_scanner import LibraryScanner
+from .subtitles import SubtitleDownloader, SubtitleLibrary
 from .options_dialog_functions import OptionsDialogFunctions
 from dialogs.options_dialog import Ui_OptionsDialog
 from dialogs.widgets.searchParameterWidget import SearchParameterWidget
@@ -46,6 +47,7 @@ class UIFunctions:
         self.uiref = uiref
         self.MainWindow = MainWindow
         self.movieLibrary = MovieLibrary()
+        self.subtitlelibrary = SubtitleLibrary()
         #initialize our application
         self.setupConnections()
         self.settings = self.loadSettings()
@@ -56,6 +58,7 @@ class UIFunctions:
 
     def setupConnections(self):
         self.uiref.actionScan_Media_Collection.triggered.connect(self.startLibraryScan)
+        self.uiref.actionUpdate_Subtitle_Cache.triggered.connect(self.updateSubtitleCache)
         self.uiref.actionSettings.triggered.connect(self.openOptionsDialog)
         self.uiref.movieLibraryInfoWidget.movieSelectionChanged.connect(self.updateLibraryDisplay)
         self.uiref.newSearchParameterButton.clicked.connect(self.newSearchParameterButtonPressed)
@@ -231,7 +234,7 @@ class UIFunctions:
         #5,dbdata["composers"]
         #6,dbdata["genres"]
         #7,dbdata["runtime"]
-        #8,dbdata["coverurl"]
+        #8,dbdata["cover_url"]
         #9,dbdata["playcount"]
         #10,dbdata["lastplay"]
         #11,dbdata["filename"]
@@ -257,28 +260,31 @@ class UIFunctions:
                         listdata[i] += "<br>%s" % "{name} as {character}".format(**a)
                     else:
                         listdata[i] += "<br>%s" % a
+        data = dict(zip(data.keys(), listdata))
+        data["clickableurl"] = data["filelocation"] + ossep + data["filename"]
         displaytext = """SELECTED_MOVIE_DATA: <br><br>
-
-<b><h2>TITLE:</h2></b>  <h1>%s</h1> <br><br>
-<b>DIRECTORS:</b>  %s<br><br>
-<b>WRITERS:</b>  %s<br><br>
-<b>PRODUCERS:</b>  %s<br><br>
-<b>ACTORS:</b>  %s<br><br>
-<b>COMPOSERS:</b>  %s<br><br>
-<b>GENRES:</b>  %s<br><br>
-<b>RUNTIME:</b>  %s<br><br>
-<b>COVER_URL:</b>  %s<br><br>
-<b>PLAYCOUNT:</b>  %s<br><br>
-<b>LASTPLAY:</b>  %s<br><br>
-<b>FILENAME:</b>  %s<br><br>
-<b>FILELOCATION:</b>  %s<br><br>
-<b>IMDB_ID:</b>  %s<br><br>
-<b>IMDB_RATING:</b>  %s<br><br>
-<b>RATING:</b>  %s<br><br>
-<b>YEAR:</b>  %s<br><br>
-<b>EXTRA1:</b>  %s<br><br>
-<b>EXTRA2:</b>  %s<br><br>
-""" % (*listdata,)
+<a href="{clickableurl}">PLAY MOVIE LOCALLY</a>
+<br>
+<b><h2>TITLE:</h2></b>  <h1>{title}</h1> <br><br>
+<b>DIRECTORS:</b>  {directors}<br><br>
+<b>WRITERS:</b>  {writers}<br><br>
+<b>PRODUCERS:</b>  {producers}<br><br>
+<b>ACTORS:</b>  {actors}<br><br>
+<b>COMPOSERS:</b>  {composers}<br><br>
+<b>GENRES:</b>  {genres}<br><br>
+<b>RUNTIME:</b>  {runtime}<br><br>
+<b>COVER_URL:</b>  {cover_url}<br><br>
+<b>PLAYCOUNT:</b>  {playcount}<br><br>
+<b>LASTPLAY:</b>  {lastplay}<br><br>
+<b>FILENAME:</b>  {filename}<br><br>
+<b>FILELOCATION:</b>  {filelocation}<br><br>
+<b>IMDB_ID:</b>  {imdb_id}<br><br>
+<b>IMDB_RATING:</b>  {imdb_rating}<br><br>
+<b>RATING:</b>  {rating}<br><br>
+<b>YEAR:</b>  {year}<br><br>
+<b>EXTRA1:</b>  {extra1}<br><br>
+<b>EXTRA2:</b>  {extra2}<br><br>
+""".format(**data)
         widget.setHtml(displaytext)
 
     def openOptionsDialog(self):
@@ -298,9 +304,11 @@ class UIFunctions:
         self.ls = LibraryScanner(self.movieLibrary, self.settings)
         self.ls.updateDisplayRequested.connect(self.loadLibraryIntoGui)
         self.ls.startScan()
-        print("AFTERSTART")
+
+    def updateSubtitleCache(self):
+        #do subtitle stuffs
+        self.subs = SubtitleDownloader(self.movieLibrary)
+        self.subs.updateCache()
 
     def quitApp(self):
         self.saveSettings()
-        #Do quitting stuff thats important
-        print("YOU KNOW I CANT QUIT YOU")

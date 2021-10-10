@@ -79,7 +79,7 @@
                 <rect>
                  <x>0</x>
                  <y>0</y>
-                 <width>821</width>
+                 <width>174</width>
                  <height>43</height>
                 </rect>
                </property>
@@ -218,6 +218,7 @@
      <string>File</string>
     </property>
     <addaction name="actionScan_Media_Collection"/>
+    <addaction name="actionUpdate_Subtitle_Cache"/>
    </widget>
    <widget class="QMenu" name="menuOptions">
     <property name="title">
@@ -236,6 +237,11 @@
   <action name="actionScan_Media_Collection">
    <property name="text">
     <string>Scan Media Collection</string>
+   </property>
+  </action>
+  <action name="actionUpdate_Subtitle_Cache">
+   <property name="text">
+    <string>Update Subtitle Cache</string>
    </property>
   </action>
  </widget>

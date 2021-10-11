@@ -192,10 +192,19 @@ class MovieLibrary:
             with getDbCursor(self.dbpath, self.dbmutex, "w") as dbcursor:
                 dbcursor.execute("UPDATE movie_data set rating=? WHERE title=?", (starcount, movietitle))
 
-    def search(self, querydata):
+    @checkDbOpen
+    def updatePlayCount(self, movietitle, curdate):
+        if self.checkForTitle(movietitle):
+            with getDbCursor(self.dbpath, self.dbmutex, "w") as dbcursor:
+                count = dbcursor.execute("SELECT playcount from movie_data where title=?", (movietitle,)).fetchone()[0]
+                dbcursor.execute("UPDATE movie_data set playcount=? where title=?", (count+1, movietitle))
+                dbcursor.execute("UPDATE movie_data set lastplay=? where title=?", (curdate, movietitle))
+            return count+1
+
+    #This function builds up our SQL query and then passes that onto _SEARCH
+    def search(self, querydata, andorstate):
         if not isinstance(querydata, dict):
             return []
-        andorstate = querydata.pop("ANDORSTATE")
         #Build up our query
         #For when we highlight results later
         hlsections = {}

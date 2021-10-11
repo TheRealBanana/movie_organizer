@@ -1,6 +1,6 @@
 import re
 from os import sep as ossep
-import imdb.Person
+from datetime import datetime
 from PyQt5 import QtWidgets, QtCore
 from collections import OrderedDict
 from .movie_library import MovieLibrary
@@ -61,26 +61,43 @@ class UIFunctions:
         self.uiref.actionUpdate_Subtitle_Cache.triggered.connect(self.updateSubtitleCache)
         self.uiref.actionSettings.triggered.connect(self.openOptionsDialog)
         self.uiref.movieLibraryInfoWidget.movieSelectionChanged.connect(self.updateLibraryDisplay)
+        self.uiref.movieLibraryInfoWidget.updatePlayCount["QString"].connect(self.updatePlayCount)
+        self.uiref.movieLibraryInfoWidget.libraryStarRating.starRatingChanged['int'].connect(self.starRatingChanged)
         self.uiref.newSearchParameterButton.clicked.connect(self.newSearchParameterButtonPressed)
         self.uiref.searchButton.clicked.connect(self.searchButtonPressed)
         self.uiref.searchTabWidget.tabCloseRequested['int'].connect(self.closeSearchTabPressed)
-        self.uiref.movieLibraryInfoWidget.libraryStarRating.starRatingChanged['int'].connect(self.starRatingChanged)
 
     #A place for any dynamic modifications of the GUI.
     def guimods(self):
         #Remove close button from main search tab
         self.uiref.searchTabWidget.tabBar().tabButton(0, QtWidgets.QTabBar.RightSide).resize(0,0)
 
+    def updatePlayCount(self, movietitle):
+        #Update the database and then update the display search results and main library view
+        curdate = datetime.now().strftime('%d/%b/%Y-%I:%M:%S %p')
+        count = self.movieLibrary.updatePlayCount(movietitle, curdate)
+        self.updateCurrentLibraryItemData("playcount", count)
+        self.updateCurrentLibraryItemData("lastplay", curdate)
+
 
     def starRatingChanged(self, rating):
-        curitem = self.uiref.movieLibraryInfoWidget.movieLibraryList.currentItem()
-        if curitem is None:
-            return
-        curmoviedata = curitem.data(QtCore.Qt.UserRole)
-        curmoviedata["rating"] = rating
-        self.movieLibrary.updateMovieStarRating(curmoviedata["title"], rating)
-        curitem.setData(QtCore.Qt.UserRole, curmoviedata)
+        self.updateCurrentLibraryItemData("rating", rating)
 
+    def updateCurrentLibraryItemData(self, field, newdata):
+        #If we came from a search tab we need to handle updating the main library view differently
+        if self.uiref.mainTabWidget.currentIndex() == 1: #Came from search tab
+            searchresultitem = self.uiref.searchTabWidget.currentWidget().movieLibraryList.currentItem()
+            searchresultdata = searchresultitem.data(QtCore.Qt.UserRole)
+            searchresultdata[field] = newdata
+            searchresultitem.setData(QtCore.Qt.UserRole, searchresultdata)
+            # Alt way to get item from main library view
+            libitem = self.uiref.movieLibraryInfoWidget.movieLibraryList.findItems(searchresultdata["cleantitle"], QtCore.Qt.MatchExactly)[0]
+        else: #Not from a search tab
+            libitem = self.uiref.movieLibraryInfoWidget.movieLibraryList.currentItem()
+        #Update main library view
+        libdata = libitem.data(QtCore.Qt.UserRole)
+        libdata[field] = newdata
+        libitem.setData(QtCore.Qt.UserRole, libdata)
 
     def closeSearchTabPressed(self, idx):
         self.uiref.searchTabWidget.removeTab(idx)
@@ -88,23 +105,26 @@ class UIFunctions:
     def searchButtonPressed(self):
         #Get our search parameters
         querydata = {}
-        querydata["ANDORSTATE"] = {}
+        andorstate = {}
         for w in self.uiref.scrollAreaWidgetContents.findChildren(SearchParameterWidget):
             fielddata = w.returnData()
-            andorstate = w.andorState()
+            aostate = w.andorState()
             if len(fielddata) == 0:
                 continue
             querydata[w.currentfield] = str(fielddata).strip()
-            #Include data about the AND/OR check state.
-            querydata["ANDORSTATE"][w.currentfield] = andorstate
+            andorstate[w.currentfield] = aostate
 
-        results = self.movieLibrary.search(querydata)
+        results = self.movieLibrary.search(querydata, andorstate)
         hlsections = results.pop("hlsections")
         #Now create a new search query tab and populate the results
         movieinfowidget = movieLibraryInfoWidget(self.uiref.searchTabWidget)
         movieinfowidget.movieSelectionChanged.connect(self.updateLibraryDisplay)
+        movieinfowidget.libraryStarRating.starRatingChanged['int'].connect(self.starRatingChanged)
+        movieinfowidget.updatePlayCount["QString"].connect(self.updatePlayCount)
         #Go through our results and highlight any sections we searched with
         for k, rdata in sorted(results.items(), key=lambda t: t[0].lower()):
+            #preserve the title name for later stuffs
+            rdata["cleantitle"] = rdata["title"]
             listitem = QtWidgets.QListWidgetItem(rdata["title"])
             #Highlight whatever matched
             for section in hlsections:
@@ -137,7 +157,14 @@ class UIFunctions:
             listitem.setData(QtCore.Qt.UserRole, rdata)
             listitem.setToolTip(str(rdata["filename"]))
             movieinfowidget.movieLibraryList.addItem(listitem)
+        #Build up a string with our search parameters to set as a tooltip for this search tab
+        tooltipstr = "Search query parameters:\n"
+        for fname, fdata in querydata.items():
+            tooltipstr += "\n%s%s: %s\n" % (fname, "" if andorstate[fname] == "OR" else " (AND)", fdata)
+
         self.uiref.searchTabWidget.addTab(movieinfowidget, "SEARCH RESULTS (%d)" % len(results))
+        tabindex = self.uiref.searchTabWidget.indexOf(movieinfowidget)
+        self.uiref.searchTabWidget.setTabToolTip(tabindex, tooltipstr)
         self.uiref.searchTabWidget.setCurrentWidget(movieinfowidget)
 
 
@@ -246,7 +273,11 @@ class UIFunctions:
         #17,dbdata["extra1"]
         #18,dbdata["extra2"]
         #Update star rating widget
-        self.uiref.movieLibraryInfoWidget.libraryStarRating.starClickedUpdate(data["rating"], emit=False)
+        if self.uiref.mainTabWidget.currentIndex() == 1:
+            #Signal came from a search query tab, find the current tab and set our listwidget to its widget
+            self.uiref.searchTabWidget.currentWidget().libraryStarRating.starClickedUpdate(data["rating"], emit=False)
+        else:
+            self.uiref.movieLibraryInfoWidget.libraryStarRating.starClickedUpdate(data["rating"], emit=False)
         #Format data for display:
         #most stuff is ok just the lists need to be adjusted
         listdata = list(data.values())

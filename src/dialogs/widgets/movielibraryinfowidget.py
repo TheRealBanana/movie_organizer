@@ -2,6 +2,7 @@ from PyQt5 import QtCore, QtWidgets, QtGui
 from .starratingwidget import starRatingWidget
 
 class movieLibraryInfoWidget(QtWidgets.QWidget):
+    updatePlayCount = QtCore.pyqtSignal(str)
     movieSelectionChanged = QtCore.pyqtSignal(QtCore.QVariant, QtCore.QVariant, QtCore.QVariant)
 
     def __init__(self, parent=None):
@@ -56,4 +57,6 @@ class movieLibraryInfoWidget(QtWidgets.QWidget):
     def openfile(self, url):
         fixedurl = QtCore.QUrl.fromPercentEncoding(bytes(url.toString(), "utf-8"))
         QtGui.QDesktopServices.openUrl(QtCore.QUrl.fromLocalFile(fixedurl))
+        currentmovietitle = self.movieLibraryList.currentItem().text()
+        self.updatePlayCount.emit(currentmovietitle)
 

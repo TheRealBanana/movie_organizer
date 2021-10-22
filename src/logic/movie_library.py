@@ -59,7 +59,7 @@ class getDbCursor(object):
 class MovieLibrary:
     def __init__(self, DBPATH=DATABASE_PATH):
         self.dbmutex = False
-        self.librarydict = {}
+        self.librarydict = None
         self.dbpath = DBPATH
         self.fieldlist = []
         self.checkForMoviesDb()
@@ -158,9 +158,12 @@ class MovieLibrary:
 
     @checkDbOpen
     def getFullDatabase(self):
+        if self.librarydict is not None:
+            return self.librarydict
         with getDbCursor(self.dbpath, self.dbmutex) as dbcursor:
             alldata = dbcursor.execute("SELECT * FROM movie_data").fetchall()
         returndata = fixDbData(alldata, self.fieldlist)
+        self.librarydict = returndata
         return returndata
 
     @checkDbOpen
@@ -260,7 +263,6 @@ class MovieLibrary:
         return results
 
 
-    #TODO bare searching with a query string is haphazard at best
     def _SEARCH(self, querystr):
         with getDbCursor(self.dbpath, self.dbmutex) as dbcursor:
             return fixDbData(dbcursor.execute(querystr).fetchall(), self.fieldlist)

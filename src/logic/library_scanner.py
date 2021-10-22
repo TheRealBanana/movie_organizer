@@ -24,7 +24,7 @@ VIDEO_EXTENSIONS=["avi", "divx", "amv", "mpg", "mpeg", "mpe", "m1v", "m2v",
                   "mkv", "webm", "ogm", "ogv", "flv", "f4v", "wmv", "rmvb",
                   "rm", "dv"]
 
-REMOVE_KEYWORDS = ["proper", "repack", "utorrent", "unrated", "part 1", "part 2", "2in1"]
+REMOVE_KEYWORDS = ["proper", "repack", "unrated", "part 1", "part 2", "2in1"]
 
 movie_title_regex =        re.compile("^(.*?)[\s\.]?((?:19|20)[0-9]{2}).*?(720|1080|2160)", re.IGNORECASE)
 movie_title_regex_noyear = re.compile("^(.*)[\s\.]?((?:19|20)[0-9]{2})?.*?(720|1080|2160)", re.IGNORECASE)
@@ -413,8 +413,8 @@ class LibraryScanner(QObject):
         self.spawnCrawlerThreads()
 
     def spawnCrawlerThreads(self):
-        # Keep going until all folders have been scanned and all threads have joined
-        while len(self.activecrawlerthreads) < int(self.scansettings["threads"]) and len(self.folderstoscan) > 0:
+        # Keep going until all folders have been scanned and all threads have joined or a stop is called
+        while len(self.activecrawlerthreads) < int(self.scansettings["threads"]) and len(self.folderstoscan) > 0 and self.stopping is False:
             newthread = QThread()
             newthread.setTerminationEnabled(True) # Can't find documentation on what the default is or how to check what its currently set to.
             folder = self.folderstoscan.pop(-1)

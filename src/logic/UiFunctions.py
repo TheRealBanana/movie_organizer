@@ -79,7 +79,6 @@ class UIFunctions:
         self.updateCurrentLibraryItemData("playcount", count)
         self.updateCurrentLibraryItemData("lastplay", curdate)
 
-
     def starRatingChanged(self, rating):
         self.updateCurrentLibraryItemData("rating", rating)
 
@@ -338,8 +337,10 @@ class UIFunctions:
 
     def updateSubtitleCache(self):
         #do subtitle stuffs
-        self.subs = SubtitleDownloader(self.movieLibrary)
-        self.subs.updateCache()
+        r = self.movieLibrary.getFullDatabase()
+        print(type(r))
+        self.subs = SubtitleDownloader(r, self.subtitlelibrary)
+        self.subs.updateSubsCache()
 
     def quitApp(self):
         self.saveSettings()

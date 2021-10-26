@@ -1,8 +1,8 @@
 #All the subtitle related code here
 import json
-from subprocess import check_output
+from subprocess import Popen, PIPE
+import subprocess
 from base64 import urlsafe_b64encode
-from time import sleep
 from PyQt5.QtCore import QThread, QObject, pyqtSignal, QVariant
 from .movie_library import checkDbOpen, getDbCursor
 from dialogs.widgets.generic_progress_bar import genericProgressDialog
@@ -81,29 +81,20 @@ class SubtitleExtractor(QObject):
     def __init__(self, moviedata, parent=None):
         super(SubtitleExtractor, self).__init__(parent)
         self.moviedata = moviedata
+        self.cmd = None
 
     def getSubs(self):
         if "substmp" not in os.listdir():
             os.mkdir("substmp")
-            print("Created substmp folder")
         #Get track id, extract track to file, read file data into dict, emit data
         vidpath = self.moviedata["filelocation"].replace(r"\\", r"\\") + "\\" + self.moviedata["filename"].replace(r"\\", r"\\")
-        try:
-            trackid = self.getSubtitleTrackIds(vidpath)
-        except Exception as e:
-            print("ERROR GETTING TRACKID %s" % self.moviedata["title"])
-            print(e)
-            return
+        trackid = self.getSubtitleTrackIds(vidpath)
         if len(trackid) == 0: #Didnt find subs
             self.threadFinished.emit(self)
+            print("NOFINDSUBS")
             return
         trackid = trackid[0]
-        try:
-            rawsubs = self.extractSubtitlesFromVideo(vidpath, trackid, self.moviedata["title"])
-        except Exception as e:
-            print("ERROR EXTRACTING SUBS: %s" % self.moviedata["title"])
-            print(e)
-            return
+        rawsubs = self.extractSubtitlesFromVideo(vidpath, trackid, self.moviedata["title"])
         #Emitdata is just the data we need for addSubs()
         emitdata = {}
         emitdata["title"] = self.moviedata["title"]
@@ -117,7 +108,9 @@ class SubtitleExtractor(QObject):
     def getSubtitleTrackIds(self, vidpath):
         #Using mkvmerge's json output we can look for the exact track we want and then extract it
         cmd = "mkvmerge --identification-format json --identify \"%s\"" % vidpath
-        videodata = json.loads(check_output(cmd, shell=True))
+        self.cmd = Popen(cmd, stdout=PIPE)
+        rawout, errors = self.cmd.communicate()
+        videodata = json.loads(rawout)
         goodsubids = [s["id"] for s in videodata["tracks"] if s["type"] == "subtitles" and \
                       s["properties"]["language"] == SUBLANG and \
                       s["properties"]["forced_track"] is False and \
@@ -135,80 +128,104 @@ class SubtitleExtractor(QObject):
     def extractSubtitlesFromVideo(self, vidpath, trackid, movietitle):
         subsfilename = "./substmp/%s.txt" % urlsafe_b64encode(movietitle.encode("utf-8")).decode("utf-8")
         cmd = "mkvextract tracks %s %s:%s" % (vidpath, trackid, subsfilename)
-        check_output(cmd, shell=True)
-        print(vidpath)
-        print(trackid)
-        print(movietitle)
+        self.cmd = Popen(cmd, stdout=PIPE)
+        out, err = self.cmd.communicate()
         with open(subsfilename, "r") as subsfile:
-            subtitles = subsfile.read()
+            subtitles = subsfile.read().encode("utf-8")
         os.remove(subsfilename)
         return subtitles
 
 #Ignoring our setting for now, just for testing
-MAX_THREADS = 5
-SLEEP_TIME = 2
+MAX_THREADS = 1
 
 class SubtitleDownloader(QObject):
     def __init__(self, movieslib, subdbref, parent=None):
         super(SubtitleDownloader, self).__init__(parent)
         self.subdbref = subdbref
         self.movieslib = movieslib
-        self.threadlist = []
+        self.threadlist = {}
+        self.moviequeue = []
+        self.addedsubs = 0
         self.stopping = False
 
+    def goodSubsCallback(self, subsdata):
+        #Ignore any sub callbacks if we are stopping as its probably incomplete
+        if self.stopping is True:
+            return
+        self.subdbref.addSubs(subsdata)
+        self.progressbar.updateDetailsText("Got good subtitles for %s. Adding to database..." % subsdata["title"])
+        self.addedsubs += 1
+        self.progressbar.progressLabel.setText("Extracted %s subtitles" % self.addedsubs)
+
     def threadFinishedCallback(self, thread):
-        self.threadlist.remove(thread)
+        self.progressbar.updateDetailsText("Thread (%s) for %s has finished" % (hex(id(thread)), thread.moviedata["title"]))
+        thread.threadref.quit()
+        thread.threadref.wait()
+        thread.threadref.deleteLater()
+        del(self.threadlist[hex(id(thread))])
         self.progressbar.progressBar.setValue(self.progressbar.progressBar.value()+1)
+        #Create a new thread if we have any left in the queue and we arent stopping
+        if len(self.moviequeue) > 0 and self.stopping is False:
+            self.createExtractionThread()
+        else:
+            s = "Movie queue is empty or stop called, done extracting."
+            print(s)
+            self.progressbar.setFinished(s)
 
     def stopUpdate(self):
-        print("UHHHHHHH")
+        endmsg = "Cancel called, killing subprocesses and waiting for threads to finish"
+        print(endmsg)
+        self.progressbar.updateDetailsText(endmsg)
+        self.progressbar.closableDialogClosing.disconnect(self.stopUpdate)
+        self.progressbar.closableDialogClosing.connect(self.progressbar.accept)
         self.stopping = True
+        for t in self.threadlist.values():
+            c = subprocess.Popen("taskkill /F /T /PID %s" % t.cmd.pid, stdout=PIPE)
+            t.threadref.quit()
 
     def updateSubsCache(self):
         #Spin up our progress bar, go through library and spin off threads for extract operations
         #Create our progress bar
         self.progressbar = genericProgressDialog()
-        #self.progressbar.cancelButton.clicked.connect(self.stopScan)
         self.progressbar.closableDialogClosing.connect(self.stopUpdate)
         self.progressbar.progressBar.setMaximum(len(self.movieslib))
         self.progressbar.progressBar.setMinimum(0)
         self.progressbar.progressBar.setValue(0)
         self.progressbar.progressLabel.setText("Extracted 0 subtitles")
         self.progressbar.show()
-        #keep track of what titles we've spun off
-        for title, mdata in self.movieslib.items():
-            print(title)
-            if self.stopping is True:
+        self.addedsubs = 0
+        self.moviequeue = list(self.movieslib.keys()) # list of titles still needing extraction threads run on them
+        # spun up MAX_THREADS number of threads to start
+        for _ in range(MAX_THREADS):
+            self.createExtractionThread()
+
+    def createExtractionThread(self):
+        title = self.moviequeue.pop(0)
+        moviedata = self.movieslib[title]
+        while self.subdbref.checkForSubs(title) is True: #Keep popping new titles until we get one we need to create a thread for
+            #Just return if there's nothing left in the queue
+            if len(self.moviequeue) == 0:
                 return
+            #update the progressbar
+            self.progressbar.progressBar.setValue(self.progressbar.progressBar.value()+1)
+            title = self.moviequeue.pop(0)
+            moviedata = self.movieslib[title]
 
-            if self.subdbref.checkForSubs(title):
-                #update the progressbar
-                self.progressbar.progressBar.setValue(self.progressbar.progressBar.value()+1)
-                continue
+        newthread = QThread()
+        newthread.setTerminationEnabled(True)
+        xtr = SubtitleExtractor(moviedata)
+        xtr.threadref = newthread
+        xtr.moveToThread(newthread)
+        newthread.started.connect(xtr.getSubs)
+        xtr.newSubtitles.connect(self.goodSubsCallback)
+        xtr.threadFinished.connect(self.threadFinishedCallback)
+        self.threadlist[hex(id(xtr))] = xtr
+        updatemsg = "Created new extraction thread (%s) for movie %s" % (hex(id(xtr)), title)
+        print(updatemsg)
+        self.progressbar.updateDetailsText(updatemsg)
+        newthread.start()
+        #xtr.getSubs()
 
-            #Wait for a thread to finish if needed
-            if len(self.threadlist) == MAX_THREADS:
-                while self.threadlist == MAX_THREADS:
-                    sleep(SLEEP_TIME) # check every SLEEP_TIME seconds
-
-            #xtr = SubtitleExtractor(mdata)
-            #xtr.getSubs()
-
-            #Spin up new thread
-
-            newthread = QThread()
-            newthread.setTerminationEnabled(True)
-            xtr = SubtitleExtractor(mdata)
-            xtr.threadref = newthread
-            xtr.moveToThread(newthread)
-            newthread.started.connect(xtr.getSubs)
-            xtr.newSubtitles.connect(self.subdbref.addSubs)
-            xtr.threadFinished.connect(self.threadFinishedCallback)
-            newthread.start()
-            updatemsg = "Created new extraction thread for movie %s" % title
-            print(updatemsg)
-            self.progressbar.updateDetailsText(updatemsg)
-            self.threadlist.append(xtr)
 
 
 

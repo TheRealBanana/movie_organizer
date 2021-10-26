@@ -33,7 +33,14 @@
      </property>
      <layout class="QVBoxLayout" name="movieLibraryInfoFrameVLayout">
       <item>
-       <widget class="QTextBrowser" name="movieInfoDisplay"/>
+       <widget class="QTextBrowser" name="movieInfoDisplay">
+        <property name="openExternalLinks">
+         <bool>false</bool>
+        </property>
+        <property name="openLinks">
+         <bool>false</bool>
+        </property>
+       </widget>
       </item>
       <item>
        <widget class="QFrame" name="libraryStarRatingContainerFrame">

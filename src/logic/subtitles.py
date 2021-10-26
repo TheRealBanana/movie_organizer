@@ -111,11 +111,15 @@ class SubtitleExtractor(QObject):
         self.cmd = Popen(cmd, stdout=PIPE)
         rawout, errors = self.cmd.communicate()
         videodata = json.loads(rawout)
-        goodsubids = [s["id"] for s in videodata["tracks"] if s["type"] == "subtitles" and \
-                      s["properties"]["language"] == SUBLANG and \
-                      s["properties"]["forced_track"] is False and \
-                      "S_TEXT" in s["properties"]["codec_id"] and \
-                      ("SDH" not in s["properties"]["track_name"].upper() if "track_name" in s["properties"] else True)] # Would prefer not to use SDH subs but maybe I can filter out actions
+        goodsubids = []
+        for s in videodata["tracks"]:
+            if "codec_id" not in s["properties"]:
+                continue
+            if s["type"] == "subtitles" and s["properties"]["language"] == SUBLANG and \
+               (s["properties"]["forced_track"] is False if "forced_track" in s["properties"] else True) and \
+               "S_TEXT" in s["properties"]["codec_id"] and ("SDH" not in s["properties"]["track_name"].upper() if "track_name" in s["properties"] else True):
+                    goodsubids.append(s["id"])
+
         #At this point its hoped that there is only one track
         #If theres more we'll investigate later
         if len(goodsubids) > 1:
@@ -127,16 +131,16 @@ class SubtitleExtractor(QObject):
     #extract any given subtitle track. So don't run this over slow network paths.
     def extractSubtitlesFromVideo(self, vidpath, trackid, movietitle):
         subsfilename = "./substmp/%s.txt" % urlsafe_b64encode(movietitle.encode("utf-8")).decode("utf-8")
-        cmd = "mkvextract tracks %s %s:%s" % (vidpath, trackid, subsfilename)
+        cmd = "mkvextract tracks \"%s\" %s:%s" % (vidpath, trackid, subsfilename)
         self.cmd = Popen(cmd, stdout=PIPE)
         out, err = self.cmd.communicate()
-        with open(subsfilename, "r") as subsfile:
-            subtitles = subsfile.read().encode("utf-8")
+        with open(subsfilename, "r", encoding="utf8") as subsfile:
+            subtitles = subsfile.read()
         os.remove(subsfilename)
         return subtitles
 
 #Ignoring our setting for now, just for testing
-MAX_THREADS = 1
+MAX_THREADS = 2
 
 class SubtitleDownloader(QObject):
     def __init__(self, movieslib, subdbref, parent=None):
@@ -153,8 +157,9 @@ class SubtitleDownloader(QObject):
         if self.stopping is True:
             return
         self.subdbref.addSubs(subsdata)
-        self.progressbar.updateDetailsText("Got good subtitles for %s. Adding to database..." % subsdata["title"])
-        self.addedsubs += 1
+        msg = "Got good subtitles for %s. Adding to database..." % subsdata["title"]
+        self.progressbar.updateDetailsText(msg)
+        print(msg)
         self.progressbar.progressLabel.setText("Extracted %s subtitles" % self.addedsubs)
 
     def threadFinishedCallback(self, thread):

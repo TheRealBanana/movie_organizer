@@ -112,13 +112,15 @@ class SubtitleExtractor(QObject):
         rawout, errors = self.cmd.communicate()
         videodata = json.loads(rawout)
         goodsubids = []
+        if "tracks" not in videodata: #Something bigly wrong
+            return None
         for s in videodata["tracks"]:
             if "codec_id" not in s["properties"]:
                 continue
             if s["type"] == "subtitles" and s["properties"]["language"] == SUBLANG and \
-               (s["properties"]["forced_track"] is False if "forced_track" in s["properties"] else True) and \
-               "S_TEXT" in s["properties"]["codec_id"] and ("SDH" not in s["properties"]["track_name"].upper() if "track_name" in s["properties"] else True):
-                    goodsubids.append(s["id"])
+                    (s["properties"]["forced_track"] is False if "forced_track" in s["properties"] else True) and \
+                    "S_TEXT" in s["properties"]["codec_id"] and ("SDH" not in s["properties"]["track_name"].upper() if "track_name" in s["properties"] else True):
+                goodsubids.append(s["id"])
 
         #At this point its hoped that there is only one track
         #If theres more we'll investigate later
@@ -160,6 +162,7 @@ class SubtitleDownloader(QObject):
         msg = "Got good subtitles for %s. Adding to database..." % subsdata["title"]
         self.progressbar.updateDetailsText(msg)
         print(msg)
+        self.addedsubs += 1
         self.progressbar.progressLabel.setText("Extracted %s subtitles" % self.addedsubs)
 
     def threadFinishedCallback(self, thread):

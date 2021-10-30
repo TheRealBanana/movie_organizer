@@ -262,7 +262,7 @@ class MovieLibrary:
         results["hlsections"] = hlsections
         return results
 
-
+    @checkDbOpen
     def _SEARCH(self, querystr):
         with getDbCursor(self.dbpath, self.dbmutex) as dbcursor:
             return fixDbData(dbcursor.execute(querystr).fetchall(), self.fieldlist)

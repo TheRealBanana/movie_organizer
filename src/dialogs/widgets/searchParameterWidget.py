@@ -32,8 +32,12 @@ class SearchParameterWidget(QtWidgets.QWidget):
 
         #AND/OR checkbox. Multiple values can be searched for in a single field by separating them with a semicolon
         #This checkbox controls whether we use AND or OR in our SQL query. OR'ing has been the default behavior.
+        #With dialog searches we change the behavior to switch between exact and fuzzy searching
         self.andorCheckbox = QtWidgets.QCheckBox(self)
-        self.andorCheckbox.setToolTip("Checked = multiple entries for this field are AND'd together, unchecked they are OR'd together. ")
+        if self.currentfield == "dialog":
+            self.andorCheckbox.setToolTip("Checked = Fuzzy, inexact searching (slow)\nUnchecked = Exact match searching only")
+        else:
+            self.andorCheckbox.setToolTip("Checked = multiple entries for this field are AND'd together, unchecked they are OR'd together. ")
         self.searchTemplateHLayout.addWidget(self.andorCheckbox)
 
         #spacerItem2 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum)

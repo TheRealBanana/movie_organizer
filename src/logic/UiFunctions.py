@@ -105,16 +105,31 @@ class UIFunctions:
         #Get our search parameters
         querydata = {}
         andorstate = {}
+        dlgsearch = None # Pull out dialog search queries since they cant be handled by the movie library
+
         for w in self.uiref.scrollAreaWidgetContents.findChildren(SearchParameterWidget):
             fielddata = w.returnData()
             aostate = w.andorState()
             if len(fielddata) == 0:
                 continue
-            querydata[w.currentfield] = str(fielddata).strip()
+            if w.currentfield == "dialog":
+                dlgsearch = str(fielddata).strip()
+            else:
+                querydata[w.currentfield] = str(fielddata).strip()
             andorstate[w.currentfield] = aostate
-
-        results = self.movieLibrary.search(querydata, andorstate)
+        if len(querydata) == 0: #No search parameters
+            if dlgsearch is None:
+                return #Nothing entered
+            else: #Just a piece of dialog, this means we have to search the entire database
+                results = self.movieLibrary.search({"title": "%"}, {})
+        else:
+            results = self.movieLibrary.search(querydata, andorstate)
         hlsections = results.pop("hlsections")
+        #Do we need to search subtitles for dialog?
+        if dlgsearch is not None:
+            dlgresults = self.subtitlelibrary.search(dlgsearch, results, andorstate["dialog"])
+            print(len(dlgresults[1]))
+
         #Now create a new search query tab and populate the results
         movieinfowidget = movieLibraryInfoWidget(self.uiref.searchTabWidget)
         movieinfowidget.movieSelectionChanged.connect(self.updateLibraryDisplay)
@@ -246,6 +261,7 @@ class UIFunctions:
             self.uiref.movieLibraryInfoWidget.movieLibraryList.addItem(listitem)
         #TODO The fieldlist shouldnt ever update dynamically but if we ever decide to this will probably break
         self.fieldlist = OrderedDict.fromkeys(self.movieLibrary.fieldlist, True)
+        self.fieldlist["dialog"] = True # Also need to match dialog which isnt a key in our movie library database
         #Update library tab title to include library size
         self.uiref.mainTabWidget.setTabText(self.uiref.mainTabWidget.indexOf(self.uiref.movieLibraryTab), "Movie Library (%d)" % len(keys))
 

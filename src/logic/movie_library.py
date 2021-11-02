@@ -118,7 +118,6 @@ class MovieLibrary:
                 # With normal dicts we have to specify each value separately (which is a lot of bleh code).
                 checktype(moviedata)
                 #dbcursor.execute("INSERT INTO movie_data VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (*moviedata.values(),))
-                #TODO make separate columns for the movie title and filenames
                 dbcursor.execute("INSERT INTO movie_data VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                                  (moviedata["title"],
                                   str(moviedata["directors"]),
@@ -238,7 +237,6 @@ class MovieLibrary:
                         if valuerange[0] > valuerange[1]: #Start of the range higher than the end
                             valuerange.reverse()
                         querystr = "CAST(%s as %s) BETWEEN %s AND %s" % (field, "REAL" if field == "imdb_rating" else "INTEGER", valuerange[0], valuerange[1])
-                        #TODO CHange this to just hold the two endpoints and dynamically highlight on display
                         hlsections[field] += [valuerange[0], valuerange[1]]
                     else:
                         #Not a number range

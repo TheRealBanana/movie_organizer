@@ -1,4 +1,5 @@
 from PyQt5 import QtCore, QtWidgets, QtGui
+from subprocess import Popen, PIPE
 from .starratingwidget import starRatingWidget
 
 class movieLibraryInfoWidget(QtWidgets.QWidget):
@@ -55,8 +56,14 @@ class movieLibraryInfoWidget(QtWidgets.QWidget):
         self.movieInfoDisplay.anchorClicked['QUrl'].connect(self.openfile)
 
     def openfile(self, url):
+        #Only update play count when we click the "PLAY FILE LOCALLY" link
+        #The other possible link will have the vlc exe in it
         fixedurl = QtCore.QUrl.fromPercentEncoding(bytes(url.toString(), "utf-8"))
-        QtGui.QDesktopServices.openUrl(QtCore.QUrl.fromLocalFile(fixedurl))
-        currentmovietitle = self.movieLibraryList.currentItem().text()
-        self.updatePlayCount.emit(currentmovietitle)
+        if "network-caching" in fixedurl:
+            _ = Popen(fixedurl, stdout=PIPE)
+        else:
+            fixedurl = QtCore.QUrl.fromPercentEncoding(bytes(url.toString(), "utf-8"))
+            QtGui.QDesktopServices.openUrl(QtCore.QUrl.fromLocalFile(fixedurl))
+            currentmovietitle = self.movieLibraryList.currentItem().text()
+            self.updatePlayCount.emit(currentmovietitle)
 

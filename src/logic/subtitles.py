@@ -105,7 +105,7 @@ class SubtitleLibrary:
         #added at. Later we can reference the index of the dialog to find the timecode again.
         for subdata in returndata.values():
             #All the srt files I have seen so far delineate separate pieces of dialog by an empty line.
-            subdata["subtitles"] = re.sub(r"\r", "", subdata["subtitles"], flags=re.MULTILINE) # Fix line endings
+            subdata["subtitles"] = re.sub(r"\r", "", str(subdata["subtitles"]), flags=re.MULTILINE) # Fix line endings
             splitsubs = re.split(r"\n^$\n", str(subdata["subtitles"]), flags=re.MULTILINE)
             subcorpus = ""
             timecodes = OrderedDict() # key=index , val = timecode
@@ -192,13 +192,20 @@ class SubtitleExtractor(QObject):
             if s["type"] == "subtitles" and s["properties"]["language"] == SUBLANG and \
                     (s["properties"]["forced_track"] is False if "forced_track" in s["properties"] else True) and \
                     "S_TEXT" in s["properties"]["codec_id"] and ("SDH" not in s["properties"]["track_name"].upper() if "track_name" in s["properties"] else True):
-                goodsubids.append(s["id"])
+                if "track_name" not in s["properties"]:
+                    s["properties"]["track_name"] = ""
+                print(s["properties"]["track_name"])
+                goodsubids.append(s)
 
         #At this point its hoped that there is only one track
-        #If theres more we'll investigate later
+        #If theres more than one we'll try and take the largest one and hope for the best ¯\_(ツ)_/¯
         if len(goodsubids) > 1:
             print("Got more than 1 good track for %s" % vidpath)
-        return goodsubids
+        #Because we made sure each one had a title before, we can sort by the length of the title itself.
+        #The hope is that a longer track name for any subtitle is because its describing something specific about the track
+        #E.g. in The Legend of Ron Burgundy one of the subtitle tracks is titled "English subs for foreign dialogue (e.g. animals speaking)"
+        goodsubids = sorted(goodsubids, key=lambda r: len(r["properties"]["track_name"]))
+        return [s["id"] for s in goodsubids]
 
 
     #It seems that practically speaking you have to read the entire file to
@@ -311,16 +318,3 @@ class SubtitleDownloader(QObject):
         print(updatemsg)
         self.progressbar.updateDetailsText(updatemsg)
         newthread.start()
-        #xtr.getSubs()
-
-
-
-
-
-
-    #In addition to time codes there are many subtitles are are representative of actions and not dialog.
-    #This function aims to remove actions and possibly ascribe dialog to individual characters.
-    #Some subtitles seem to contain information about the speaker but this may not be universal.
-    #For now just returning dialog alone is sufficient for our needs.
-    def filterDialogFromSubs(self, subtitles):
-        pass

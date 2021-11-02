@@ -141,9 +141,6 @@ class imdbInfoGrabber(QObject):
         return sorted(outlist, key=lambda m: m.extradata["rating"], reverse=True)
 
     def getInfo(self):
-        #TODO DELETEME
-        p = 0
-
         ib = imdb.IMDb() # Online check
         ia = imdb.IMDb("s3", "sqlite:///%s" % S3DATASET_LOCATION)
         #self.filedata[tld] = [ [filename, foldername], ...]

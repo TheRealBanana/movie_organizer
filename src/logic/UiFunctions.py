@@ -134,7 +134,8 @@ class UIFunctions:
             for k, r in dlgresults.items():
                 #Just placeholder matching. This is both exact and terrible, better matching later
                 if dlgsearch.lower() in r["subtitles"]["corpus"].lower():
-                    matcheddlg[k] = r
+                    matcheddlg[k] = {}
+                    matcheddlg[k]["result"] = r
                     #Figure out the timecode by using the timecode dict and the index of our match
                     matchidx = r["subtitles"]["corpus"].lower().index(dlgsearch.lower())
                     lasti = 0
@@ -152,7 +153,6 @@ class UIFunctions:
                     #Trying 10 seconds for now
                     timecodeseconds = (int(hours)*60*60) + (int(minutes)*60) + int(seconds) - 5
                     vlcpath = r"C:\Program Files (x86)\VideoLAN\VLC\vlc.exe"
-                    movielink = "%s --start-time %s \"%s\"" % (vlcpath, timecodeseconds, r["filelocation"] + "\\" + r["filename"])
                     #TODO Maybe we should print a couple timecodes worth of subs
                     #Or at least get the length of this particular sub bit and print it completely
                     print("FOUND FOR QUERY %s at index %s" % (dlgsearch, matchidx))
@@ -160,13 +160,15 @@ class UIFunctions:
                     #Find the index of lasti so we can pull in the next few lines too
                     indexlist = list(r["subtitles"]["timecodes"].keys())
                     timecodeidx = indexlist.index(lasti)
+                    movielink = "%s --network-caching=15000 --start-time %s \"%s\"" % (vlcpath, timecodeseconds, r["filelocation"] + "\\" + r["filename"])
                     #We removed punctuation earlier to make matching easier but now it looks goofy
                     #Separating lines by a newline makes it look a bit better
                     nicequote = r["subtitles"]["corpus"][indexlist[timecodeidx-1]:lasti] + "\n" # Grab one line before
                     for n in range(1,5): #How many lines ahead to grab?
                         nicequote += r["subtitles"]["corpus"][lasti:indexlist[timecodeidx+n]] + "\n"
                         lasti = indexlist[timecodeidx+n]
-                    print("TC IDX: %s" % timecodeidx)
+                    matcheddlg[k]["movielink"] = movielink
+                    matcheddlg[k]["nicequote"] = nicequote
                     print("FOR DIALOG:\n%s" % nicequote)
                     print("Link to play movie at that time: \n")
                     print(movielink)
@@ -177,6 +179,7 @@ class UIFunctions:
         if dlgsearch is not None and len(dlgsearch) > 0:
             tmpresults = {key: results[key] for key in matcheddlg.keys()}
             results = tmpresults
+
         #Now create a new search query tab and populate the results
         movieinfowidget = movieLibraryInfoWidget(self.uiref.searchTabWidget)
         movieinfowidget.movieSelectionChanged.connect(self.updateLibraryDisplay)
@@ -215,6 +218,9 @@ class UIFunctions:
                                 rdata[section][idx] = re.sub("(%s)" % re.escape(namematch.group(1)), HIGHLIGHT_SUB_REGEX, string, flags=re.I)
 
                 #print("%s - %s" % (section, type(d[section])))
+            #Add dialog match data if we have it
+            if k in matcheddlg:
+                rdata["dialogmatch"] = matcheddlg[k]
             listitem.setData(QtCore.Qt.UserRole, rdata)
             listitem.setToolTip(str(rdata["filename"]))
             movieinfowidget.movieLibraryList.addItem(listitem)
@@ -356,9 +362,13 @@ class UIFunctions:
                         listdata[i] += "<br>%s" % a
         data = dict(zip(data.keys(), listdata))
         data["clickableurl"] = data["filelocation"] + ossep + data["filename"]
+        if "dialogmatch" in data:
+            data["dialogshortcut"] = "\n<br><a href=\'%s\'>PLAY MOVIE AT FOUND QUOTE</a>" % data["dialogmatch"]["movielink"]
+        else:
+            data["dialogshortcut"] = ""
         displaytext = """SELECTED_MOVIE_DATA: <br><br>
 <a href="{clickableurl}">PLAY MOVIE LOCALLY</a>
-<br>
+{dialogshortcut}<br>
 <b><h2>TITLE:</h2></b>  <h1>{title}</h1> <br><br>
 <b>DIRECTORS:</b>  {directors}<br><br>
 <b>WRITERS:</b>  {writers}<br><br>
@@ -402,8 +412,7 @@ class UIFunctions:
     def updateSubtitleCache(self):
         #do subtitle stuffs
         r = self.movieLibrary.getFullDatabase()
-        p = self.movieLibrary._SEARCH("SELECT * FROM movie_data WHERE title LIKE \"%goonies%\"")
-        print(len(p))
+        p = self.movieLibrary._SEARCH("SELECT * FROM movie_data WHERE title LIKE \"%anchorman%\"")
         self.subs = SubtitleDownloader(p, self.subtitlelibrary)
         #self.subs = SubtitleDownloader(r, self.subtitlelibrary)
         self.subs.updateSubsCache()

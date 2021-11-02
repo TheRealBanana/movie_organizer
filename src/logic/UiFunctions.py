@@ -125,10 +125,40 @@ class UIFunctions:
         else:
             results = self.movieLibrary.search(querydata, andorstate)
         hlsections = results.pop("hlsections")
+        if len(results.keys()) == 0:
+            print("No movie found in movies db for query")
         #Do we need to search subtitles for dialog?
         if dlgsearch is not None:
-            dlgresults = self.subtitlelibrary.search(dlgsearch, results, andorstate["dialog"])
-            print(len(dlgresults[1]))
+            dlgresults = self.subtitlelibrary.search(list(results.keys()))
+            for r in dlgresults.values():
+                #Just placeholder matching. This is both exact and terrible, better matching later
+                if dlgsearch.lower() in r["subtitles"]["corpus"].lower():
+                    #Figure out the timecode by using the timecode dict and the index of our match
+                    matchidx = r["subtitles"]["corpus"].lower().index(dlgsearch.lower())
+                    lasti = 0
+                    for i in r["subtitles"]["timecodes"]:
+                        if i < matchidx:
+                            lasti = i
+                            continue
+                        break
+                    #TODO This is just placeholder stuffs removeme
+                    #convert timecode to seconds
+                    tc, _ = re.split("\s*-->\s*", r["subtitles"]["timecodes"][lasti])
+                    hours, minutes, seconds = re.match("([0-9]{2}):([0-9]{2}):([0-9]{2}),[0-9]{3}", tc).groups()
+                    #TODO One idea here is to maybe subtrack a few seconds off the timecode so that its queued up
+                    #at a point just BEFORE the quote, so you have time to get into the scene before its said.
+                    #Trying 10 seconds for now
+                    timecodeseconds = (int(hours)*60*60) + (int(minutes)*60) + int(seconds) - 5
+                    vlcpath = r"C:\Program Files (x86)\VideoLAN\VLC\vlc.exe"
+                    movielink = "%s --start-time %s \"%s\"" % (vlcpath, timecodeseconds, r["filelocation"] + "\\" + r["filename"])
+                    #TODO Maybe we should print a couple timecodes worth of subs
+                    #Or at least get the length of this particular sub bit and print it completely
+                    print("TIMECODE AT  %s" % r["subtitles"]["timecodes"][lasti])
+                    print("FOR DIALOG:\n%s" % r["subtitles"]["corpus"][lasti:i+60])
+                    print("Link to play movie at that time: \n")
+                    print(movielink)
+                    print("\n\n")
+
 
         #Now create a new search query tab and populate the results
         movieinfowidget = movieLibraryInfoWidget(self.uiref.searchTabWidget)
@@ -354,7 +384,6 @@ class UIFunctions:
     def updateSubtitleCache(self):
         #do subtitle stuffs
         r = self.movieLibrary.getFullDatabase()
-        print(type(r))
         self.subs = SubtitleDownloader(r, self.subtitlelibrary)
         self.subs.updateSubsCache()
 

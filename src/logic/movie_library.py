@@ -234,10 +234,10 @@ class MovieLibrary:
                 if field in "year runtime playcount rating imdb_rating":
                     valuerangereg = re.search("([0-9]+(?:\.[0-9]+)?)[\s]*-[\s]*([0-9]+(?:\.[0-9]+)?)", value.strip())
                     if valuerangereg is not None:
-                        valuerange = [float(x) for x in valuerangereg.groups()]
+                        valuerange = [float(valuerangereg.group(1)), float(valuerangereg.group(2))]
                         if valuerange[0] > valuerange[1]: #Start of the range higher than the end
                             valuerange.reverse()
-                        querystr = "CAST(%s as %s) BETWEEN %s AND %s" % (field, "REAL" if field == "imdb_rating" else "INTEGER", *valuerange)
+                        querystr = "CAST(%s as %s) BETWEEN %s AND %s" % (field, "REAL" if field == "imdb_rating" else "INTEGER", valuerange[0], valuerange[1])
                         #TODO CHange this to just hold the two endpoints and dynamically highlight on display
                         hlsections[field] += [valuerange[0], valuerange[1]]
                     else:

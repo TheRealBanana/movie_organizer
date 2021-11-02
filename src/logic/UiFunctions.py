@@ -128,11 +128,13 @@ class UIFunctions:
         if len(results.keys()) == 0:
             print("No movie found in movies db for query")
         #Do we need to search subtitles for dialog?
+        matcheddlg = {}
         if dlgsearch is not None:
             dlgresults = self.subtitlelibrary.search(list(results.keys()))
-            for r in dlgresults.values():
+            for k, r in dlgresults.items():
                 #Just placeholder matching. This is both exact and terrible, better matching later
                 if dlgsearch.lower() in r["subtitles"]["corpus"].lower():
+                    matcheddlg[k] = r
                     #Figure out the timecode by using the timecode dict and the index of our match
                     matchidx = r["subtitles"]["corpus"].lower().index(dlgsearch.lower())
                     lasti = 0
@@ -153,13 +155,28 @@ class UIFunctions:
                     movielink = "%s --start-time %s \"%s\"" % (vlcpath, timecodeseconds, r["filelocation"] + "\\" + r["filename"])
                     #TODO Maybe we should print a couple timecodes worth of subs
                     #Or at least get the length of this particular sub bit and print it completely
+                    print("FOUND FOR QUERY %s at index %s" % (dlgsearch, matchidx))
                     print("TIMECODE AT  %s" % r["subtitles"]["timecodes"][lasti])
-                    print("FOR DIALOG:\n%s" % r["subtitles"]["corpus"][lasti:i+60])
+                    #Find the index of lasti so we can pull in the next few lines too
+                    indexlist = list(r["subtitles"]["timecodes"].keys())
+                    timecodeidx = indexlist.index(lasti)
+                    #We removed punctuation earlier to make matching easier but now it looks goofy
+                    #Separating lines by a newline makes it look a bit better
+                    nicequote = r["subtitles"]["corpus"][indexlist[timecodeidx-1]:lasti] + "\n" # Grab one line before
+                    for n in range(1,5): #How many lines ahead to grab?
+                        nicequote += r["subtitles"]["corpus"][lasti:indexlist[timecodeidx+n]] + "\n"
+                        lasti = indexlist[timecodeidx+n]
+                    print("TC IDX: %s" % timecodeidx)
+                    print("FOR DIALOG:\n%s" % nicequote)
                     print("Link to play movie at that time: \n")
                     print(movielink)
                     print("\n\n")
 
-
+        #If we have any results from the dialog search, we can filter our any movies that didnt match from our main results
+        #Not sure if it copies the dict to memory first or if it does it in place. Just to be safe...
+        if dlgsearch is not None and len(dlgsearch) > 0:
+            tmpresults = {key: results[key] for key in matcheddlg.keys()}
+            results = tmpresults
         #Now create a new search query tab and populate the results
         movieinfowidget = movieLibraryInfoWidget(self.uiref.searchTabWidget)
         movieinfowidget.movieSelectionChanged.connect(self.updateLibraryDisplay)
@@ -205,6 +222,7 @@ class UIFunctions:
         tooltipstr = "Search query parameters:\n"
         for fname, fdata in querydata.items():
             tooltipstr += "\n%s%s: %s\n" % (fname, "" if andorstate[fname] == "OR" else " (AND)", fdata)
+        tooltipstr += "\nDialog: %s\n" % dlgsearch
 
         self.uiref.searchTabWidget.addTab(movieinfowidget, "SEARCH RESULTS (%d)" % len(results))
         tabindex = self.uiref.searchTabWidget.indexOf(movieinfowidget)
@@ -384,7 +402,10 @@ class UIFunctions:
     def updateSubtitleCache(self):
         #do subtitle stuffs
         r = self.movieLibrary.getFullDatabase()
-        self.subs = SubtitleDownloader(r, self.subtitlelibrary)
+        p = self.movieLibrary._SEARCH("SELECT * FROM movie_data WHERE title LIKE \"%goonies%\"")
+        print(len(p))
+        self.subs = SubtitleDownloader(p, self.subtitlelibrary)
+        #self.subs = SubtitleDownloader(r, self.subtitlelibrary)
         self.subs.updateSubsCache()
 
     def quitApp(self):

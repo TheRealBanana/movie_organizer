@@ -2,7 +2,7 @@
 import json
 import re
 from subprocess import Popen, PIPE
-import subprocess
+from collections import OrderedDict
 from base64 import urlsafe_b64encode
 from PyQt5.QtCore import QThread, QObject, pyqtSignal, QVariant
 from .movie_library import checkDbOpen, getDbCursor, fixDbData
@@ -105,9 +105,10 @@ class SubtitleLibrary:
         #added at. Later we can reference the index of the dialog to find the timecode again.
         for subdata in returndata.values():
             #All the srt files I have seen so far delineate separate pieces of dialog by an empty line.
-            splitsubs = re.split(r"\n^$\n", subdata["subtitles"], flags=re.MULTILINE)
+            subdata["subtitles"] = re.sub(r"\r", "", subdata["subtitles"], flags=re.MULTILINE) # Fix line endings
+            splitsubs = re.split(r"\n^$\n", str(subdata["subtitles"]), flags=re.MULTILINE)
             subcorpus = ""
-            timecodes = {} # key=index , val = timecode
+            timecodes = OrderedDict() # key=index , val = timecode
             for line in splitsubs:
                 if len(line.strip()) == 0:
                     continue
@@ -122,7 +123,11 @@ class SubtitleLibrary:
                 #I havent seen any complicated tags yet so for now a regex is fine.
                 dialog = re.sub(r"<[\s\w/]+?>", "", dialog, flags=re.M)
                 #Also remove any newlines
+                #TODO leaving in newlines makes the outlook look nicer and we can search over newlines using re anyway
+                #Future searching shouldnt need this filter
                 dialog = re.sub(r"\n", " ", dialog, flags=re.M)
+                #Finally any punctuation that could also cause issues matching
+                dialog = re.sub(r"[^\w\s]", "", dialog, flags=re.M)
                 index = len(subcorpus)
                 subcorpus += dialog + " "
                 timecodes[index] = timecode
@@ -201,6 +206,7 @@ class SubtitleExtractor(QObject):
     def extractSubtitlesFromVideo(self, vidpath, trackid, movietitle):
         subsfilename = "./substmp/%s.txt" % urlsafe_b64encode(movietitle.encode("utf-8")).decode("utf-8")
         cmd = "mkvextract tracks \"%s\" %s:%s" % (vidpath, trackid, subsfilename)
+        print(cmd)
         self.cmd = Popen(cmd, stdout=PIPE)
         out, err = self.cmd.communicate()
         if self.stopping: return
@@ -258,7 +264,7 @@ class SubtitleDownloader(QObject):
         self.stopping = True
         for t in self.threadlist.values():
             t.stopping = True
-            _ = subprocess.Popen("taskkill /F /T /PID %s" % t.cmd.pid, stdout=PIPE)
+            _ = Popen("taskkill /F /T /PID %s" % t.cmd.pid, stdout=PIPE)
             t.threadref.quit()
         self.progressbar.setFinished()
 

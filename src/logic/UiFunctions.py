@@ -6,15 +6,11 @@ from collections import OrderedDict
 from .movie_library import MovieLibrary
 from .library_scanner import LibraryScanner
 from .subtitles import SubtitleDownloader, SubtitleLibrary
+from .search import SearchManager
 from .options_dialog_functions import OptionsDialogFunctions
 from dialogs.options_dialog import Ui_OptionsDialog
 from dialogs.widgets.searchParameterWidget import SearchParameterWidget
 from dialogs.widgets.movielibraryinfowidget import movieLibraryInfoWidget
-
-#Change the way we highlight results
-START_HIGHLIGHT = '<span style="background-color: #FFFF00">'
-END_HIGHLIGHT = "</span>"
-HIGHLIGHT_SUB_REGEX = START_HIGHLIGHT + r"\1" + END_HIGHLIGHT
 
 def qstringFixer(value):
     if isinstance(value, QtCore.QString):
@@ -42,12 +38,15 @@ def qtypeFixer(value):
         value = fixeddict
     return value
 
+
+
 class UIFunctions:
     def __init__(self, uiref, MainWindow):
         self.uiref = uiref
         self.MainWindow = MainWindow
         self.movieLibrary = MovieLibrary()
-        self.subtitlelibrary = SubtitleLibrary()
+        self.subtitleLibrary = SubtitleLibrary()
+        self.searchManager = SearchManager(self.movieLibrary, self.subtitleLibrary)
         #initialize our application
         self.setupConnections()
         self.settings = self.loadSettings()
@@ -107,6 +106,7 @@ class UIFunctions:
         andorstate = {}
         dlgsearch = None # Pull out dialog search queries since they cant be handled by the movie library
 
+        #Collect the search parameters and pass them to the search manager
         for w in self.uiref.scrollAreaWidgetContents.findChildren(SearchParameterWidget):
             fielddata = w.returnData()
             aostate = w.andorState()
@@ -117,123 +117,29 @@ class UIFunctions:
             else:
                 querydata[w.currentfield] = str(fielddata).strip()
             andorstate[w.currentfield] = aostate
-        if len(querydata) == 0: #No search parameters
-            if dlgsearch is None:
-                return #Nothing entered
-            else: #Just a piece of dialog, this means we have to search the entire database
-                results = self.movieLibrary.search({"title": "%"}, {})
-        else:
-            results = self.movieLibrary.search(querydata, andorstate)
-        hlsections = results.pop("hlsections")
-        if len(results.keys()) == 0:
-            print("No movie found in movies db for query")
-        #Do we need to search subtitles for dialog?
-        matcheddlg = {}
-        if dlgsearch is not None:
-            dlgresults = self.subtitlelibrary.search(list(results.keys()))
-            for k, r in dlgresults.items():
-                #Just placeholder matching. This is both exact and terrible, better matching later
-                if dlgsearch.lower() in r["subtitles"]["corpus"].lower():
-                    matcheddlg[k] = {}
-                    matcheddlg[k]["result"] = r
-                    #Figure out the timecode by using the timecode dict and the index of our match
-                    matchidx = r["subtitles"]["corpus"].lower().index(dlgsearch.lower())
-                    lasti = 0
-                    for i in r["subtitles"]["timecodes"]:
-                        if i < matchidx:
-                            lasti = i
-                            continue
-                        break
-                    #TODO This is just placeholder stuffs removeme
-                    #convert timecode to seconds
-                    tc, _ = re.split("\s*-->\s*", r["subtitles"]["timecodes"][lasti])
-                    hours, minutes, seconds = re.match("([0-9]{2}):([0-9]{2}):([0-9]{2}),[0-9]{3}", tc).groups()
-                    #TODO One idea here is to maybe subtrack a few seconds off the timecode so that its queued up
-                    #at a point just BEFORE the quote, so you have time to get into the scene before its said.
-                    #Trying 10 seconds for now
-                    timecodeseconds = (int(hours)*60*60) + (int(minutes)*60) + int(seconds) - 5
-                    vlcpath = r"C:\Program Files (x86)\VideoLAN\VLC\vlc.exe"
-                    #TODO Maybe we should print a couple timecodes worth of subs
-                    #Or at least get the length of this particular sub bit and print it completely
-                    print("FOUND FOR QUERY %s at index %s" % (dlgsearch, matchidx))
-                    print("TIMECODE AT  %s" % r["subtitles"]["timecodes"][lasti])
-                    #Find the index of lasti so we can pull in the next few lines too
-                    indexlist = list(r["subtitles"]["timecodes"].keys())
-                    timecodeidx = indexlist.index(lasti)
-                    movielink = "%s --network-caching=15000 --start-time %s \"%s\"" % (vlcpath, timecodeseconds, r["filelocation"] + "\\" + r["filename"])
-                    #We removed punctuation earlier to make matching easier but now it looks goofy
-                    #Separating lines by a newline makes it look a bit better
-                    nicequote = r["subtitles"]["corpus"][indexlist[timecodeidx-1]:lasti] + "\n" # Grab one line before
-                    for n in range(1,5): #How many lines ahead to grab?
-                        nicequote += r["subtitles"]["corpus"][lasti:indexlist[timecodeidx+n]] + "\n"
-                        lasti = indexlist[timecodeidx+n]
-                    matcheddlg[k]["movielink"] = movielink
-                    matcheddlg[k]["nicequote"] = nicequote
-                    print("FOR DIALOG:\n%s" % nicequote)
-                    print("Link to play movie at that time: \n")
-                    print(movielink)
-                    print("\n\n")
 
-        #If we have any results from the dialog search, we can filter our any movies that didnt match from our main results
-        #Not sure if it copies the dict to memory first or if it does it in place. Just to be safe...
-        if dlgsearch is not None and len(dlgsearch) > 0:
-            tmpresults = {key: results[key] for key in matcheddlg.keys()}
-            results = tmpresults
-
-        #Now create a new search query tab and populate the results
-        movieinfowidget = movieLibraryInfoWidget(self.uiref.searchTabWidget)
-        movieinfowidget.movieSelectionChanged.connect(self.updateLibraryDisplay)
-        movieinfowidget.libraryStarRating.starRatingChanged['int'].connect(self.starRatingChanged)
-        movieinfowidget.updatePlayCount["QString"].connect(self.updatePlayCount)
-        #Go through our results and highlight any sections we searched with
-        for k, rdata in sorted(results.items(), key=lambda t: t[0].lower()):
-            #preserve the title name for later stuffs
-            rdata["cleantitle"] = rdata["title"]
-            listitem = QtWidgets.QListWidgetItem(rdata["title"])
-            #Highlight whatever matched
-            for section in hlsections:
-                #Handle years differently
-                if section == "year":
-                    if rdata[section] in hlsections[section]:
-                        rdata["year"] = START_HIGHLIGHT + str(rdata["year"]) + END_HIGHLIGHT
-
-                elif isinstance(rdata[section], str):
-                    rgx = "(%s)" % "|".join([re.escape(str(x)) for x in hlsections[section]])
-                    rdata[section] = re.sub(rgx, HIGHLIGHT_SUB_REGEX, rdata[section], flags=re.IGNORECASE|re.MULTILINE)
-                elif isinstance(rdata[section], list):
-                    for idx, string in enumerate(rdata[section]):
-                        #List could be people or genres
-                        #TODO We can match character names too. Will probably use a separate search tag for that.
-                        rgx = "(%s)" % "|".join([re.escape(str(x)) for x in hlsections[section]])
-                        checkstr = string["name"] + " " + string["character"] if isinstance(string, dict) else string
-                        namematch = re.search(rgx, checkstr, flags=re.I)
-                        if namematch is not None:
-                            if isinstance(string, dict):
-                                string["name"] = re.sub("(%s)" % re.escape(namematch.group(1)), HIGHLIGHT_SUB_REGEX, string["name"], flags=re.I)
-                                #Highlight character names too
-                                charmatch = re.search("(%s)" % "|".join([re.escape(str(x)) for x in hlsections[section]]), string["character"], flags=re.I)
-                                if charmatch is not None:
-                                    string["character"] = re.sub("(%s)" % re.escape(charmatch.group(1)), HIGHLIGHT_SUB_REGEX, string["character"], flags=re.I)
-                            else:
-                                rdata[section][idx] = re.sub("(%s)" % re.escape(namematch.group(1)), HIGHLIGHT_SUB_REGEX, string, flags=re.I)
-
-                #print("%s - %s" % (section, type(d[section])))
-            #Add dialog match data if we have it
-            if k in matcheddlg:
-                rdata["dialogmatch"] = matcheddlg[k]
-            listitem.setData(QtCore.Qt.UserRole, rdata)
-            listitem.setToolTip(str(rdata["filename"]))
-            movieinfowidget.movieLibraryList.addItem(listitem)
         #Build up a string with our search parameters to set as a tooltip for this search tab
         tooltipstr = "Search query parameters:\n"
         for fname, fdata in querydata.items():
             tooltipstr += "\n%s%s: %s\n" % (fname, "" if andorstate[fname] == "OR" else " (AND)", fdata)
-        tooltipstr += "\nDialog: %s\n" % dlgsearch
+        if dlgsearch is not None:
+            tooltipstr += "\nDialog: %s\n" % dlgsearch
 
-        self.uiref.searchTabWidget.addTab(movieinfowidget, "SEARCH RESULTS (%d)" % len(results))
+        movieinfowidget = movieLibraryInfoWidget(self.uiref.searchTabWidget)
+        movieinfowidget.movieSelectionChanged.connect(self.updateLibraryDisplay)
+        movieinfowidget.libraryStarRating.starRatingChanged['int'].connect(self.starRatingChanged)
+        movieinfowidget.updatePlayCount["QString"].connect(self.updatePlayCount)
+        #Create search results tab
+        self.uiref.searchTabWidget.addTab(movieinfowidget, "SEARCH RESULTS (0)")
         tabindex = self.uiref.searchTabWidget.indexOf(movieinfowidget)
         self.uiref.searchTabWidget.setTabToolTip(tabindex, tooltipstr)
         self.uiref.searchTabWidget.setCurrentWidget(movieinfowidget)
+        #Create search job
+        querydata["andorstate"] = andorstate
+        querydata["dlgsearch"] = dlgsearch
+        self.searchManager.newSearchJob(querydata, movieinfowidget)
+
+
 
 
     def newSearchParameterButtonPressed(self):
@@ -413,7 +319,7 @@ class UIFunctions:
         #do subtitle stuffs
         r = self.movieLibrary.getFullDatabase()
         p = self.movieLibrary._SEARCH("SELECT * FROM movie_data WHERE title LIKE \"%anchorman%\"")
-        self.subs = SubtitleDownloader(p, self.subtitlelibrary)
+        self.subs = SubtitleDownloader(p, self.subtitleLibrary)
         #self.subs = SubtitleDownloader(r, self.subtitlelibrary)
         self.subs.updateSubsCache()
 

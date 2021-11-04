@@ -7,13 +7,14 @@ START_HIGHLIGHT = '<span style="background-color: #FFFF00">'
 END_HIGHLIGHT = "</span>"
 HIGHLIGHT_SUB_REGEX = START_HIGHLIGHT + r"\1" + END_HIGHLIGHT
 
-class dialogSearchJob(QObject):
+class movieSearchJob(QObject):
     searchProgressUpdate = pyqtSignal(int) # General progress - how many have been processed/how many total
     newSearchResult = pyqtSignal(QVariant)
     searchJobFinished = pyqtSignal()
+    threadFinished = pyqtSignal(QVariant)
 
     def __init__(self, libraryinfowidgetref, querydata, movielibref, sublibref, parent=None):
-        super(dialogSearchJob, self).__init__(parent)
+        super(movieSearchJob, self).__init__(parent)
         self.libinfowidget = libraryinfowidgetref
         self.querydata = querydata
         self.movieLibrary = movielibref
@@ -137,13 +138,31 @@ class dialogSearchJob(QObject):
             listitem.setToolTip(str(rdata["filename"]))
             self.libinfowidget.movieLibraryList.addItem(listitem)
 
+        self.threadFinished.emit(self)
+
 class SearchManager(QObject):
     def __init__(self, movielibref, subtitlelibref, parent=None):
         super(SearchManager, self).__init__(parent)
         self.movielibref = movielibref
         self.subtitlelibref = subtitlelibref
+        self.activeSearchJobs = {}
+
+    def threadFinishedCallback(self, searchJob):
+        searchJob.threadref.quit()
+        searchJob.threadref.wait()
+        searchJob.threadref.deleteLater()
+        del(self.activeSearchJobs[hex(id(searchJob))])
 
     def newSearchJob(self, searchparams, listwidgetref):
-        #Placeholder, will do threading and stuffs after but for now this is just to get things back working
-        newjob = dialogSearchJob(listwidgetref, searchparams, self.movielibref, self.subtitlelibref)
-        newjob.startSearch()
+        newjob = movieSearchJob(listwidgetref, searchparams, self.movielibref, self.subtitlelibref)
+        #newjob.startSearch()
+        newthread = QThread()
+        newthread.setTerminationEnabled(True)
+        newjob.threadref = newthread
+        newjob.moveToThread(newthread)
+        newthread.started.connect(newjob.startSearch)
+        newjob.threadFinished.connect(self.threadFinishedCallback)
+        self.activeSearchJobs[hex(id(newjob))] = newjob
+        #updatemsg = "Created new search job thread (%s)" % hex(id(newjob))
+        #print(updatemsg)
+        newthread.start()

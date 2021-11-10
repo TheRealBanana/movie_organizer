@@ -115,7 +115,7 @@ class SubtitleLibrary:
                 srtregex = r"([0-9]{2}:[0-9]{2}:[0-9]{2},[0-9]{3}\s*-->\s*[0-9]{2}:[0-9]{2}:[0-9]{2},[0-9]{3})(.*)"
                 tcmatch = re.search(srtregex, line, flags=re.MULTILINE|re.DOTALL)
                 if tcmatch is None:
-                    print("Found an invalid line in file %s. Is this a valid srt format?" % subdata["filename"])
+                    #print("Found an invalid line in file %s. Is this a valid srt format?" % subdata["filename"])
                     continue
                 timecode = tcmatch.group(1)
                 dialog = tcmatch.group(2).strip()
@@ -127,6 +127,7 @@ class SubtitleLibrary:
                 #Future searching shouldnt need this filter
                 dialog = re.sub(r"\n", " ", dialog, flags=re.M)
                 #Finally any punctuation that could also cause issues matching
+                #This makes the matched quote look weird, it would be nice to preserve punctuation without it causing issues
                 dialog = re.sub(r"[^\w\s]", "", dialog, flags=re.M)
                 index = len(subcorpus)
                 subcorpus += dialog + " "
@@ -189,13 +190,14 @@ class SubtitleExtractor(QObject):
         for s in videodata["tracks"]:
             if "codec_id" not in s["properties"]:
                 continue
-            if s["type"] == "subtitles" and s["properties"]["language"] == SUBLANG and \
-                    (s["properties"]["forced_track"] is False if "forced_track" in s["properties"] else True) and \
-                    "S_TEXT" in s["properties"]["codec_id"] and ("SDH" not in s["properties"]["track_name"].upper() if "track_name" in s["properties"] else True):
-                if "track_name" not in s["properties"]:
-                    s["properties"]["track_name"] = ""
-                print(s["properties"]["track_name"])
-                goodsubids.append(s)
+            if s["type"] == "subtitles" and s["properties"]["language"] == SUBLANG:
+                if "forced track" not in ["properties"] or s["properties"]["forced_track"] is False:
+                    if s["properties"]["codec_id"] == "S_TEXT/UTF8":
+                        if "track_name" not in s["properties"]:
+                            s["properties"]["track_name"] = ""
+                        if "SDH" not in s["properties"]["track_name"].upper():
+                            print(s["properties"]["track_name"])
+                            goodsubids.append(s)
 
         #At this point its hoped that there is only one track
         #If theres more than one we'll try and take the largest one and hope for the best ¯\_(ツ)_/¯
@@ -232,7 +234,7 @@ class SubtitleDownloader(QObject):
         self.movieslib = movieslib
         self.threadlist = {}
         self.moviequeue = []
-        self.addedsubs = 0
+        self.addedsubs = []
         self.stopping = False
         self.progressbar = None
 
@@ -244,8 +246,8 @@ class SubtitleDownloader(QObject):
         msg = "Got good subtitles for %s. Adding to database..." % subsdata["title"]
         self.progressbar.updateDetailsText(msg)
         print(msg)
-        self.addedsubs += 1
-        self.progressbar.progressLabel.setText("Extracted %s subtitles" % self.addedsubs)
+        self.addedsubs.append(subsdata["title"])
+        self.progressbar.progressLabel.setText("Extracted %s subtitles" % len(self.addedsubs))
 
     def threadFinishedCallback(self, thread):
         self.progressbar.updateDetailsText("Thread (%s) for %s has finished" % (hex(id(thread)), thread.moviedata["title"]))
@@ -261,6 +263,11 @@ class SubtitleDownloader(QObject):
             s = "Movie queue is empty or stop called, done extracting."
             print(s)
             self.progressbar.setFinished(s)
+            try:
+                self.progressbar.closableDialogClosing.disconnect(self.stopUpdate)
+                self.progressbar.closableDialogClosing.connect(self.progressbar.accept)
+            except:
+                pass
 
     def stopUpdate(self):
         endmsg = "Cancel called, killing subprocesses and waiting for threads to finish"
@@ -285,7 +292,7 @@ class SubtitleDownloader(QObject):
         self.progressbar.progressBar.setValue(0)
         self.progressbar.progressLabel.setText("Extracted 0 subtitles")
         self.progressbar.show()
-        self.addedsubs = 0
+        self.addedsubs = []
         self.moviequeue = list(self.movieslib.keys()) # list of titles still needing extraction threads run on them
         # spun up MAX_THREADS number of threads to start
         for _ in range(MAX_THREADS):

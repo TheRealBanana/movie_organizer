@@ -46,7 +46,7 @@ class UIFunctions:
         self.MainWindow = MainWindow
         self.movieLibrary = MovieLibrary()
         self.subtitleLibrary = SubtitleLibrary()
-        self.searchManager = SearchManager(self.movieLibrary, self.subtitleLibrary)
+        self.searchManager = SearchManager(self.movieLibrary, self.subtitleLibrary, self.uiref.searchTabWidget)
         #initialize our application
         self.setupConnections()
         self.settings = self.loadSettings()
@@ -318,9 +318,9 @@ class UIFunctions:
     def updateSubtitleCache(self):
         #do subtitle stuffs
         r = self.movieLibrary.getFullDatabase()
-        p = self.movieLibrary._SEARCH("SELECT * FROM movie_data WHERE title LIKE \"%anchorman%\"")
+        p = self.movieLibrary._SEARCH("SELECT * FROM movie_data WHERE title LIKE \"%aliens%\"")
         self.subs = SubtitleDownloader(p, self.subtitleLibrary)
-        #self.subs = SubtitleDownloader(r, self.subtitlelibrary)
+        #self.subs = SubtitleDownloader(r, self.subtitleLibrary)
         self.subs.updateSubsCache()
 
     def quitApp(self):

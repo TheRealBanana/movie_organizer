@@ -48,7 +48,7 @@ class SubtitleLibrary:
         else:
             # No database file exists so we are going to create it.
             with getDbCursor(self.dbpath, self.dbmutex, 'w') as dbcursor:
-                #Lyrics table
+                #Subtitles table
                 dbcursor.execute("CREATE TABLE subtitle_data ("
                                  "title TEXT NOT NULL PRIMARY KEY,"
                                  "filename TEXT,"
@@ -105,23 +105,36 @@ class SubtitleLibrary:
         #added at. Later we can reference the index of the dialog to find the timecode again.
         for subdata in returndata.values():
             #All the srt files I have seen so far delineate separate pieces of dialog by an empty line.
+            #SubStation Alpha format only separates sections by a newline and by standard we should have 3 sections
             subdata["subtitles"] = re.sub(r"\r", "", str(subdata["subtitles"]), flags=re.MULTILINE) # Fix line endings
             splitsubs = re.split(r"\n^$\n", str(subdata["subtitles"]), flags=re.MULTILINE)
+
+            if len(splitsubs) == 3: #Probably SSA sub format
+                subregex = r"Dialogue:\w*(?:[^,]*),([^,]*),([^,]*),(?:[^,]*),(?:[^,]*),(?:[^,]*),(?:[^,]*),(?:[^,]*),(?:[^,]*),(.*)"
+                splitsubs = re.split(r"\n", splitsubs[2])
+                ssa = True
+            else:
+                subregex = r"([0-9]{2}:[0-9]{2}:[0-9]{2},[0-9]{3})\s*-->\s*([0-9]{2}:[0-9]{2}:[0-9]{2},[0-9]{3})(.*)"
+                ssa = False
+
             subcorpus = ""
             timecodes = OrderedDict() # key=index , val = timecode
             for line in splitsubs:
                 if len(line.strip()) == 0:
                     continue
-                srtregex = r"([0-9]{2}:[0-9]{2}:[0-9]{2},[0-9]{3}\s*-->\s*[0-9]{2}:[0-9]{2}:[0-9]{2},[0-9]{3})(.*)"
-                tcmatch = re.search(srtregex, line, flags=re.MULTILINE|re.DOTALL)
+
+                tcmatch = re.search(subregex, line, flags=re.MULTILINE|re.DOTALL)
                 if tcmatch is None:
-                    #print("Found an invalid line in file %s. Is this a valid srt format?" % subdata["filename"])
+                    #print("Found an invalid line in file %s. Is this a valid srt or ssa format?" % subdata["filename"])
                     continue
                 timecode = tcmatch.group(1)
-                dialog = tcmatch.group(2).strip()
+                dialog = tcmatch.group(3).strip()
                 #Some srt files include html tags so we'll remove those as well.
                 #I havent seen any complicated tags yet so for now a regex is fine.
-                dialog = re.sub(r"<[\s\w/]+?>", "", dialog, flags=re.M)
+                #Also handles SSA formatters e.g. {\i1}
+                dialog = re.sub(r"[<{][\\\s\w/0-9]+?[>}]", "", dialog, flags=re.M)
+                #SSA format needs to have the newlines fixed
+                if ssa: dialog = re.sub(r"\\N", r"\n", dialog)
                 #Also remove any newlines
                 #TODO leaving in newlines makes the outlook look nicer and we can search over newlines using re anyway
                 #Future searching shouldnt need this filter
@@ -157,14 +170,22 @@ class SubtitleExtractor(QObject):
             os.mkdir("substmp")
         #Get track id, extract track to file, read file data into dict, emit data
         vidpath = self.moviedata["filelocation"].replace(r"\\", r"\\") + "\\" + self.moviedata["filename"].replace(r"\\", r"\\")
-        trackid = self.getSubtitleTrackIds(vidpath)
+        trackids = self.getSubtitleTrackIds(vidpath)
         if self.stopping: return
-        if trackid is None or len(trackid) == 0: #Didnt find subs
+        if trackids is None or len(trackids) == 0: #Didnt find subs
             self.threadFinished.emit(self)
-            print("NOFINDSUBS")
+            #print("NOFINDSUBS")
             return
-        trackid = trackid[0]
-        rawsubs = self.extractSubtitlesFromVideo(vidpath, trackid, self.moviedata["title"])
+        rawsubs = None
+        #Try all the track ids we got but reject any subs that are less than 4k characters.
+        for tid in trackids:
+            if self.stopping: return
+            rawsubs = self.extractSubtitlesFromVideo(vidpath, tid, self.moviedata["title"])
+            if rawsubs is not None and len(rawsubs) > 4000:
+                break
+        #Did we actually get anything?
+        if rawsubs is None or len(rawsubs) < 4000:
+            return
         if self.stopping: return
         #Emitdata is just the data we need for addSubs()
         emitdata = {
@@ -191,11 +212,11 @@ class SubtitleExtractor(QObject):
             if "codec_id" not in s["properties"]:
                 continue
             if s["type"] == "subtitles" and s["properties"]["language"] == SUBLANG:
-                if "forced track" not in ["properties"] or s["properties"]["forced_track"] is False:
-                    if s["properties"]["codec_id"] == "S_TEXT/UTF8":
+                if "forced_track" not in ["properties"] or s["properties"]["forced_track"] is False:
+                    if "S_TEXT" in s["properties"]["codec_id"]: # S_TEXT alone will pick up both SRT and SSA sub formats
                         if "track_name" not in s["properties"]:
                             s["properties"]["track_name"] = ""
-                        if "SDH" not in s["properties"]["track_name"].upper():
+                        if "commentary" not in s["properties"]["track_name"].lower():
                             print(s["properties"]["track_name"])
                             goodsubids.append(s)
 
@@ -261,6 +282,9 @@ class SubtitleDownloader(QObject):
             self.createExtractionThread()
         else:
             s = "Movie queue is empty or stop called, done extracting."
+            if len(self.addedsubs) > 0:
+                s += " Added the following subtitles to the database:\n"
+                for t in self.addedsubs: s+= "\n%s" % t
             print(s)
             self.progressbar.setFinished(s)
             try:
@@ -322,6 +346,6 @@ class SubtitleDownloader(QObject):
         xtr.threadFinished.connect(self.threadFinishedCallback)
         self.threadlist[hex(id(xtr))] = xtr
         updatemsg = "Created new extraction thread (%s) for movie %s" % (hex(id(xtr)), title)
-        print(updatemsg)
+        #print(updatemsg)
         self.progressbar.updateDetailsText(updatemsg)
         newthread.start()

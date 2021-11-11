@@ -132,12 +132,12 @@ class movieSearchJob(QObject):
                 break
             #TODO This is just placeholder stuffs removeme
             #convert timecode to seconds
-            tc, _ = re.split("\s*-->\s*", result["subtitles"]["timecodes"][lasti])
-            hours, minutes, seconds = re.match("([0-9]{2}):([0-9]{2}):([0-9]{2}),[0-9]{3}", tc).groups()
+            hours, minutes, seconds = re.match(r"([0-9]{1,2}):([0-9]{2}):([0-9]{2})(?:,[0-9]{3}|\.[0-9]{2})", result["subtitles"]["timecodes"][lasti]).groups()
             #TODO One idea here is to maybe subtrack a few seconds off the timecode so that its queued up
             #at a point just BEFORE the quote, so you have time to get into the scene before its said.
             #Trying 10 seconds for now
             timecodeseconds = (int(hours)*60*60) + (int(minutes)*60) + int(seconds) - 5
+            print(timecodeseconds)
             vlcpath = r"C:\Program Files (x86)\VideoLAN\VLC\vlc.exe"
             #TODO Maybe we should print a couple timecodes worth of subs
             #Or at least get the length of this particular sub bit and print it completely

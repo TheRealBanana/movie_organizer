@@ -80,11 +80,20 @@ class UIFunctions:
 
     def starRatingChanged(self, rating):
         self.updateCurrentLibraryItemData("rating", rating)
+        movietitle = self.getCurrentListItem().text()
+        self.movieLibrary.updateMovieStarRating(movietitle, rating)
+
+    def getCurrentListItem(self):
+        if self.uiref.mainTabWidget.currentIndex() == 1: #Came from search tab
+            return self.uiref.searchTabWidget.currentWidget().movieLibraryList.currentItem()
+            searchresultdata = searchresultitem.data(QtCore.Qt.UserRole)
+        else: #Not from a search tab
+            return self.uiref.movieLibraryInfoWidget.movieLibraryList.currentItem()
 
     def updateCurrentLibraryItemData(self, field, newdata):
         #If we came from a search tab we need to handle updating the main library view differently
         if self.uiref.mainTabWidget.currentIndex() == 1: #Came from search tab
-            searchresultitem = self.uiref.searchTabWidget.currentWidget().movieLibraryList.currentItem()
+            searchresultitem = self.getCurrentListItem()
             searchresultdata = searchresultitem.data(QtCore.Qt.UserRole)
             searchresultdata[field] = newdata
             searchresultitem.setData(QtCore.Qt.UserRole, searchresultdata)

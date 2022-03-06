@@ -179,9 +179,9 @@ class imdbInfoGrabber(QObject):
                     movietitle = re.sub(kw, "", movietitle, flags=re.IGNORECASE)
                     if freg2: movietitle2 = re.sub(kw, "", movietitle2, flags=re.IGNORECASE)
 
-                if freg.group(2) is not None:
+                if freg is not None and freg.group(2) is not None:
                     movieyear = freg.group(2)
-                elif freg2.group(2) is not None:
+                elif freg2 is not None and freg2.group(2) is not None:
                     movieyear = freg2.group(2)
                 else:
                     movieyear = 0
@@ -537,11 +537,12 @@ class LibraryScanner(QObject):
 
 
     def stopScan(self):
-        print("STOPCALL")
+        #print("STOPCALL")
         self.stopping = True
         for c in self.activecrawlerthreads:
             c.stopt()
         if self.imdbworker is not None:
             self.imdbworker.stopt()
         self.progressbar.close()
+        self.updateDisplayRequested.emit()
 

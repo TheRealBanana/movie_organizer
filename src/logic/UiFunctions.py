@@ -284,7 +284,7 @@ class UIFunctions:
         displaytext = """SELECTED_MOVIE_DATA: <br><br>
 <a href="{clickableurl}">PLAY MOVIE LOCALLY</a>
 {dialogshortcut}<br>
-<b><h2>TITLE:</h2></b>  <h1>{title}</h1> <br><br>
+<b><h2>TITLE:</h2></b>  <h1>{title} ({year})</h1> <br><br>
 <b>DIRECTORS:</b>  {directors}<br><br>
 <b>WRITERS:</b>  {writers}<br><br>
 <b>PRODUCERS:</b>  {producers}<br><br>

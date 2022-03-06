@@ -132,8 +132,3 @@ class genericProgressDialog(QtWidgets.QDialog):
         self.updateDetailsText(finalmessage)
         self.progressBar.setValue(self.progressBar.maximum())
         self.cancelButton.setText("Close")
-
-    def closeEvent(self, QCloseEvent):
-        #print("CLOSEEVENT")
-        self.closableDialogClosing.emit()
-        QCloseEvent.accept()

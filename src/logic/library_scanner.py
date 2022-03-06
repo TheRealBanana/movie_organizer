@@ -127,7 +127,10 @@ class imdbInfoGrabber(QObject):
                 #print("NOTHERE")
                 result.extradata["runtimes"] = [0]
             if "year" not in result.extradata:
-                result.extradata["year"] = 0
+                if "startYear" in result.data:
+                    result.extradata["year"] = result.data["startYear"]
+                else:
+                    result.extradata["year"] = 0
             if isinstance(result.extradata["year"], str):
                 try:
                     result.extradata["year"] = int(result.extradata["year"][:4])
@@ -170,10 +173,19 @@ class imdbInfoGrabber(QObject):
                 movietitle = freg.group(1).replace(".", " ") # Periods mess things up
                 if freg2: movietitle2 = freg2.group(1).replace(".", " ") # Periods mess things up
                 else: movietitle2 = ""
+                movietitle = movietitle.strip()
+                movietitle2 = movietitle2.strip()
                 for kw in REMOVE_KEYWORDS:
                     movietitle = re.sub(kw, "", movietitle, flags=re.IGNORECASE)
                     if freg2: movietitle2 = re.sub(kw, "", movietitle2, flags=re.IGNORECASE)
-                movieyear = freg.group(2) if freg.group(2) is not None else 0
+
+                if freg.group(2) is not None:
+                    movieyear = freg.group(2)
+                elif freg2.group(2) is not None:
+                    movieyear = freg2.group(2)
+                else:
+                    movieyear = 0
+
                 #Check if we already have this movie in the database
                 if self.checkexistsfunc(movietitle) or (freg2 is not None and self.checkexistsfunc(movietitle2)):
                     self.progressUpdate.emit("Skipping %s, already in database" % movietitle)

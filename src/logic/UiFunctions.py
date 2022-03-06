@@ -328,8 +328,8 @@ class UIFunctions:
         #do subtitle stuffs
         r = self.movieLibrary.getFullDatabase()
         p = self.movieLibrary._SEARCH("SELECT * FROM movie_data WHERE title LIKE \"%aliens%\"")
-        self.subs = SubtitleDownloader(p, self.subtitleLibrary)
-        #self.subs = SubtitleDownloader(r, self.subtitleLibrary)
+        #self.subs = SubtitleDownloader(p, self.subtitleLibrary)
+        self.subs = SubtitleDownloader(r, self.subtitleLibrary)
         self.subs.updateSubsCache()
 
     def quitApp(self):

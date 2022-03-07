@@ -214,17 +214,19 @@ class UIFunctions:
         qs.endGroup()
         #qs.sync #shouldnt be needed:
 
-    def loadLibraryIntoGui(self):
+    def loadLibraryIntoGui(self, sort="title"):
         #Clear out the old list incase this is a reload
         for _ in range(self.uiref.movieLibraryInfoWidget.movieLibraryList.count()):
             self.uiref.movieLibraryInfoWidget.movieLibraryList.takeItem(0)
 
         r = self.movieLibrary.getFullDatabase()
         keys = list(r.keys())
+        # TODO This is where we can change the sorting behavior. Our menu actions should hook into this function
+        # TODO Added a default function argument for this
         keys.sort()
         for k in keys:
             d = r[k]
-            listitem = QtWidgets.QListWidgetItem(d["title"])
+            listitem = QtWidgets.QListWidgetItem("(%s)        %s" % (d["year"], d["title"]))
             listitem.setData(QtCore.Qt.UserRole, d)
             listitem.setToolTip(str(d["filename"]))
             self.uiref.movieLibraryInfoWidget.movieLibraryList.addItem(listitem)

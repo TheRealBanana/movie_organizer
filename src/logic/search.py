@@ -62,7 +62,7 @@ class movieSearchJob(QObject):
                     continue
 
             self.movieresults[k] = self.highlightResults(k, self.movieresults[k])
-            listitem = QListWidgetItem(self.movieresults[k]["cleantitle"])
+            listitem = QListWidgetItem("(%s)        %s" % (self.movieresults[k]["cleanyear"], self.movieresults[k]["cleantitle"]))
             listitem.setData(Qt.UserRole, self.movieresults[k])
             listitem.setToolTip(str(self.movieresults[k]["filename"]))
             #Keep the results in alphabetical order
@@ -78,6 +78,8 @@ class movieSearchJob(QObject):
         #Go through our results and highlight any sections we searched with
         #preserve the title name for later stuffs
         rdata["cleantitle"] = rdata["title"]
+        #I gotta figure out a better system than this. This is just dumb.
+        rdata["cleanyear"] = rdata["year"]
         #Highlight whatever matched
         for section in self.hlsections:
             #Handle years differently

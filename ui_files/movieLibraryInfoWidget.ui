@@ -15,7 +15,94 @@
   </property>
   <layout class="QHBoxLayout" name="horizontalLayout">
    <item>
-    <widget class="QListWidget" name="movieLibraryList"/>
+    <widget class="QWidget" name="leftSideContainer" native="true">
+     <property name="minimumSize">
+      <size>
+       <width>400</width>
+       <height>0</height>
+      </size>
+     </property>
+     <layout class="QGridLayout" name="gridLayout">
+      <property name="leftMargin">
+       <number>3</number>
+      </property>
+      <property name="topMargin">
+       <number>3</number>
+      </property>
+      <property name="rightMargin">
+       <number>3</number>
+      </property>
+      <property name="bottomMargin">
+       <number>3</number>
+      </property>
+      <property name="spacing">
+       <number>3</number>
+      </property>
+      <item row="0" column="3">
+       <spacer name="rightspacer">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item row="0" column="0">
+       <widget class="QLabel" name="sortLabel">
+        <property name="text">
+         <string>Sort:      </string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0" colspan="4">
+       <widget class="QListWidget" name="movieLibraryList"/>
+      </item>
+      <item row="0" column="1">
+       <widget class="QComboBox" name="sortModeDropdown">
+        <property name="minimumSize">
+         <size>
+          <width>120</width>
+          <height>0</height>
+         </size>
+        </property>
+        <item>
+         <property name="text">
+          <string>Title</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Year</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>View Count</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Last View Date</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+      <item row="0" column="2">
+       <widget class="QCheckBox" name="updownsortCheckbox">
+        <property name="toolTip">
+         <string>Ascending or Descending sort</string>
+        </property>
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
    </item>
    <item>
     <widget class="QFrame" name="movieLibraryInfoFrame">

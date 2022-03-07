@@ -221,8 +221,6 @@ class UIFunctions:
 
         r = self.movieLibrary.getFullDatabase()
         keys = list(r.keys())
-        # TODO This is where we can change the sorting behavior. Our menu actions should hook into this function
-        # TODO Added a default function argument for this
         keys.sort()
         for k in keys:
             d = r[k]

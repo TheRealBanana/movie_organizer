@@ -38,6 +38,8 @@ class movieLibraryInfoWidget(QtWidgets.QWidget):
         self.sortModeDropdown.addItem("Year")
         self.sortModeDropdown.addItem("View Count")
         self.sortModeDropdown.addItem("Last View Date")
+        self.sortModeDropdown.addItem("IMDB Rating")
+        self.sortModeDropdown.addItem("Personal Rating")
         self.gridLayout.addWidget(self.sortModeDropdown, 0, 1, 1, 1)
         self.updownsortCheckbox = QtWidgets.QCheckBox(self.leftSideContainer)
         self.updownsortCheckbox.setText("")
@@ -87,6 +89,10 @@ class movieLibraryInfoWidget(QtWidgets.QWidget):
         self.updownsortCheckbox.stateChanged['int'].connect(self.sortOptionsUpdate)
 
     def sortOptionsUpdate(self, _):
+        #Clear any selection and  temporarily disable the currentItemChanged signal
+        #These two are slowing things down when rebuilding the list
+        self.movieLibraryList.clearSelection()
+        self.movieLibraryList.currentItemChanged.disconnect()
         mode = self.sortModeDropdown.currentText().lower()
         order = self.updownsortCheckbox.isChecked()
         oldlist = []
@@ -118,6 +124,8 @@ class movieLibraryInfoWidget(QtWidgets.QWidget):
             newitem.setToolTip(str(item["filename"]))
             self.movieLibraryList.addItem(newitem)
 
+        #Redo old connection
+        self.movieLibraryList.currentItemChanged.connect(lambda newitem, olditem: self.movieSelectionChanged.emit(newitem, olditem, self.movieInfoDisplay))
 
     def openfile(self, url):
         #Only update play count when we click the "PLAY FILE LOCALLY" link

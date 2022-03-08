@@ -111,7 +111,9 @@ class movieLibraryInfoWidget(QtWidgets.QWidget):
             sortkey = mode
 
         oldlist.sort(key=lambda r: r[sortkey], reverse=order)
-        #if order: oldlist.reverse()
+        extratag = None
+        if mode in "personal rating imdb rating view count":
+            extratag = sortkey
 
         #Repopulate list
         for item in oldlist:
@@ -119,7 +121,11 @@ class movieLibraryInfoWidget(QtWidgets.QWidget):
             #but by now its far too late to change the way it works and you are stuck with it. Damn.
             if "cleanyear" not in item: item["cleanyear"] = item["year"]
             if "cleantitle" not in item: item["cleantitle"] = item["title"]
-            newitem = QtWidgets.QListWidgetItem("(%s)        %s" % (item["cleanyear"], item["cleantitle"]))
+            listitemtitle = "(%s)        %s" % (item["cleanyear"], item["cleantitle"])
+            if extratag is not None:
+                listitemtitle += " [%s]" % item[extratag]
+
+            newitem = QtWidgets.QListWidgetItem(listitemtitle)
             newitem.setData(QtCore.Qt.UserRole, item)
             newitem.setToolTip(str(item["filename"]))
             self.movieLibraryList.addItem(newitem)

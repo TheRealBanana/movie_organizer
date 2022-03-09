@@ -1,6 +1,7 @@
 from PyQt5 import QtCore, QtWidgets, QtGui
 from subprocess import Popen, PIPE
 from .starratingwidget import starRatingWidget
+from time import mktime, strptime
 
 class movieLibraryInfoWidget(QtWidgets.QWidget):
     updatePlayCount = QtCore.pyqtSignal(str)
@@ -36,6 +37,7 @@ class movieLibraryInfoWidget(QtWidgets.QWidget):
         self.sortLabel.setText("Sort:      ")
         self.sortModeDropdown.addItem("Title")
         self.sortModeDropdown.addItem("Year")
+        self.sortModeDropdown.addItem("Runtime")
         self.sortModeDropdown.addItem("View Count")
         self.sortModeDropdown.addItem("Last View Date")
         self.sortModeDropdown.addItem("IMDB Rating")
@@ -110,10 +112,29 @@ class movieLibraryInfoWidget(QtWidgets.QWidget):
         else:
             sortkey = mode
 
-        oldlist.sort(key=lambda r: r[sortkey], reverse=order)
-        extratag = None
-        if mode in "personal rating imdb rating view count":
+        #Reverse sorting order for some fields
+        if mode in "last view date view count imdb rating personal rating runtime":
+            order = order ^ True
+
+        if sortkey == "lastplay":
+            #Need a diff sorting funct
+            def sortfunc(s):
+                if len(s["lastplay"]) == 0:
+                    #Different return value so that when we sort, the movies without a last view date
+                    #dont get in the way of the sorting. We always want those results at the bottom.
+                    if order:
+                        return 0
+                    else:
+                        return 9999999999
+                return mktime(strptime(s["lastplay"], '%d/%b/%Y-%I:%M:%S %p'))
+        else:
+            sortfunc = lambda r: r[sortkey]
+
+        oldlist.sort(key=sortfunc, reverse=order)
+        if mode != "title":
             extratag = sortkey
+        else:
+            extratag = None
 
         #Repopulate list
         for item in oldlist:
@@ -123,7 +144,11 @@ class movieLibraryInfoWidget(QtWidgets.QWidget):
             if "cleantitle" not in item: item["cleantitle"] = item["title"]
             listitemtitle = "(%s)        %s" % (item["cleanyear"], item["cleantitle"])
             if extratag is not None:
-                listitemtitle += " [%s]" % item[extratag]
+                if extratag == "runtime":
+                    hours = item[extratag]//60
+                    minutes = item[extratag]%60
+                    listitemtitle += " [%sh %sm]" % (hours, minutes)
+                else: listitemtitle += " [%s]" % item[extratag]
 
             newitem = QtWidgets.QListWidgetItem(listitemtitle)
             newitem.setData(QtCore.Qt.UserRole, item)

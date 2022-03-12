@@ -79,8 +79,11 @@ class UIFunctions:
         self.updateCurrentLibraryItemData("lastplay", curdate)
 
     def starRatingChanged(self, rating):
+        curitem = self.getCurrentListItem()
+        if curitem is None:
+            return
+        movietitle = curitem.text()
         self.updateCurrentLibraryItemData("rating", rating)
-        movietitle = self.getCurrentListItem().text()
         self.movieLibrary.updateMovieStarRating(movietitle, rating)
 
     def getCurrentListItem(self):

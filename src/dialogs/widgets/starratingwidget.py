@@ -15,9 +15,9 @@ class starRatingWidget(QtWidgets.QWidget):
         super(starRatingWidget, self).__init__(parent)
         self.currentRating = 0
         self.yellowStar = QtGui.QIcon()
-        self.yellowStar.addPixmap(QtGui.QPixmap("icons/yellow_star.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.yellowStar.addPixmap(QtGui.QPixmap("../icons/yellow_star.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.greyStar = QtGui.QIcon()
-        self.greyStar.addPixmap(QtGui.QPixmap("icons/grey_star.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.greyStar.addPixmap(QtGui.QPixmap("../icons/grey_star.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.setObjectName("starRatingWidget")
         self.resize(140, 28)
         self.setMinimumSize(QtCore.QSize(140, 28))

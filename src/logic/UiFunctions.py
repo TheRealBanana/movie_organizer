@@ -86,7 +86,6 @@ class UIFunctions:
     def getCurrentListItem(self):
         if self.uiref.mainTabWidget.currentIndex() == 1: #Came from search tab
             return self.uiref.searchTabWidget.currentWidget().movieLibraryList.currentItem()
-            searchresultdata = searchresultitem.data(QtCore.Qt.UserRole)
         else: #Not from a search tab
             return self.uiref.movieLibraryInfoWidget.movieLibraryList.currentItem()
 

@@ -95,12 +95,13 @@ class UIFunctions:
     def updateCurrentLibraryItemData(self, field, newdata):
         #If we came from a search tab we need to handle updating the main library view differently
         if self.uiref.mainTabWidget.currentIndex() == 1: #Came from search tab
+            #Update rating on the search tab
             searchresultitem = self.uiref.searchTabWidget.currentWidget().movieLibraryList.currentItem()
             searchresultdata = searchresultitem.data(QtCore.Qt.UserRole)
             searchresultdata[field] = newdata
             searchresultitem.setData(QtCore.Qt.UserRole, searchresultdata)
             # Alt way to get item from main library view
-            libitem = self.uiref.movieLibraryInfoWidget.movieLibraryList.findItems(searchresultdata["cleantitle"], QtCore.Qt.MatchExactly)[0]
+            libitem = self.uiref.movieLibraryInfoWidget.movieLibraryList.findItems(searchresultdata["cleantitle"], QtCore.Qt.MatchContains)[0]
         else: #Not from a search tab
             libitem = self.uiref.movieLibraryInfoWidget.movieLibraryList.currentItem()
         #Update main library view

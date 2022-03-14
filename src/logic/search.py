@@ -127,9 +127,8 @@ class movieSearchJob(QObject):
             #Figure out the timecode by using the timecode dict and the index of our match
             matchidx = result["subtitles"]["corpus"].lower().index(self.dlgsearch.lower())
             lasti = 0
-            for i in result["subtitles"]["timecodes"]:
-                if i < matchidx:
-                    lasti = i
+            for lasti in result["subtitles"]["timecodes"]:
+                if lasti < matchidx:
                     continue
                 break
             #TODO This is just placeholder stuffs removeme
@@ -181,13 +180,19 @@ class SearchManager(QObject):
         searchJob.threadref.wait()
         searchJob.threadref.deleteLater()
         del(self.activeSearchJobs[hex(id(searchJob))])
+        senderobj = self.sender()
+        if senderobj is None: #Not sure how this happens
+            return
+        idx = self.searchtabref.indexOf(senderobj.libinfowidget)
+        oldtext = self.searchtabref.tabText(idx)
+        self.searchtabref.setTabText(idx, oldtext[2:-2]) #Cutting off the first and last 2 chars. TODO WIP ETA TBD
 
     def updateTabCount(self, count):
         senderobj = self.sender()
         if senderobj is None: #Not sure how this happens
             return
         idx = self.searchtabref.indexOf(senderobj.libinfowidget)
-        self.searchtabref.setTabText(idx, "SEARCH RESULTS (%s)" % count)
+        self.searchtabref.setTabText(idx, "~ SEARCH RESULTS (%s) ~" % count)
 
     def newSearchJob(self, searchparams, listwidgetref):
         newjob = movieSearchJob(listwidgetref, searchparams, self.movielibref, self.subtitlelibref)

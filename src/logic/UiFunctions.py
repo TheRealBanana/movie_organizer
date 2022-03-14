@@ -80,7 +80,8 @@ class UIFunctions:
 
     def starRatingChanged(self, rating):
         self.updateCurrentLibraryItemData("rating", rating)
-        movietitle = self.getCurrentListItem().text()
+        moviedata = self.getCurrentListItem().data(QtCore.Qt.UserRole)
+        movietitle = moviedata["title"]
         self.movieLibrary.updateMovieStarRating(movietitle, rating)
 
     def getCurrentListItem(self):
@@ -139,7 +140,7 @@ class UIFunctions:
         movieinfowidget.libraryStarRating.starRatingChanged['int'].connect(self.starRatingChanged)
         movieinfowidget.updatePlayCount["QString"].connect(self.updatePlayCount)
         #Create search results tab
-        self.uiref.searchTabWidget.addTab(movieinfowidget, "SEARCH RESULTS (0)")
+        self.uiref.searchTabWidget.addTab(movieinfowidget, "~ SEARCH RESULTS (0) ~")
         tabindex = self.uiref.searchTabWidget.indexOf(movieinfowidget)
         self.uiref.searchTabWidget.setTabToolTip(tabindex, tooltipstr)
         self.uiref.searchTabWidget.setCurrentWidget(movieinfowidget)

@@ -104,13 +104,10 @@ class movieLibraryInfoWidget(QtWidgets.QWidget):
             oldlist.append(olddata)
         #Sort list by new sort options
         if mode == "view count": sortkey = "playcount"
-        elif mode == "last view date":
-            #TODO MAKE LASTPLAY INTO UNIX SECONDS FOR PROPER SORTING
-            sortkey = "lastplay"
+        elif mode == "last view date": sortkey = "lastplay"
         elif mode == "personal rating": sortkey = "rating"
         elif mode == "imdb rating": sortkey = "imdb_rating"
-        else:
-            sortkey = mode
+        else: sortkey = mode
 
         #Reverse sorting order for some fields
         if mode in "last view date view count imdb rating personal rating runtime":
@@ -167,6 +164,7 @@ class movieLibraryInfoWidget(QtWidgets.QWidget):
         else:
             fixedurl = QtCore.QUrl.fromPercentEncoding(bytes(url.toString(), "utf-8"))
             QtGui.QDesktopServices.openUrl(QtCore.QUrl.fromLocalFile(fixedurl))
-            currentmovietitle = self.movieLibraryList.currentItem().text()
+            moviedata = self.movieLibraryList.currentItem().data(QtCore.Qt.UserRole)
+            currentmovietitle = moviedata["title"]
             self.updatePlayCount.emit(currentmovietitle)
 

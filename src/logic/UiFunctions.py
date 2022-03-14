@@ -79,29 +79,27 @@ class UIFunctions:
         self.updateCurrentLibraryItemData("lastplay", curdate)
 
     def starRatingChanged(self, rating):
-        curitem = self.getCurrentListItem()
-        if curitem is None:
-            return
-        movietitle = curitem.text()
         self.updateCurrentLibraryItemData("rating", rating)
+        moviedata = self.getCurrentListItem().data(QtCore.Qt.UserRole)
+        movietitle = moviedata["title"]
         self.movieLibrary.updateMovieStarRating(movietitle, rating)
 
     def getCurrentListItem(self):
         if self.uiref.mainTabWidget.currentIndex() == 1: #Came from search tab
             return self.uiref.searchTabWidget.currentWidget().movieLibraryList.currentItem()
+            searchresultdata = searchresultitem.data(QtCore.Qt.UserRole)
         else: #Not from a search tab
             return self.uiref.movieLibraryInfoWidget.movieLibraryList.currentItem()
 
     def updateCurrentLibraryItemData(self, field, newdata):
         #If we came from a search tab we need to handle updating the main library view differently
         if self.uiref.mainTabWidget.currentIndex() == 1: #Came from search tab
-            #Update rating on the search tab
             searchresultitem = self.uiref.searchTabWidget.currentWidget().movieLibraryList.currentItem()
             searchresultdata = searchresultitem.data(QtCore.Qt.UserRole)
             searchresultdata[field] = newdata
             searchresultitem.setData(QtCore.Qt.UserRole, searchresultdata)
             # Alt way to get item from main library view
-            libitem = self.uiref.movieLibraryInfoWidget.movieLibraryList.findItems(searchresultdata["cleantitle"], QtCore.Qt.MatchContains)[0]
+            libitem = self.uiref.movieLibraryInfoWidget.movieLibraryList.findItems(searchresultdata["cleantitle"], QtCore.Qt.MatchExactly)[0]
         else: #Not from a search tab
             libitem = self.uiref.movieLibraryInfoWidget.movieLibraryList.currentItem()
         #Update main library view
@@ -142,7 +140,7 @@ class UIFunctions:
         movieinfowidget.libraryStarRating.starRatingChanged['int'].connect(self.starRatingChanged)
         movieinfowidget.updatePlayCount["QString"].connect(self.updatePlayCount)
         #Create search results tab
-        self.uiref.searchTabWidget.addTab(movieinfowidget, "SEARCH RESULTS (0)")
+        self.uiref.searchTabWidget.addTab(movieinfowidget, "~ SEARCH RESULTS (0) ~")
         tabindex = self.uiref.searchTabWidget.indexOf(movieinfowidget)
         self.uiref.searchTabWidget.setTabToolTip(tabindex, tooltipstr)
         self.uiref.searchTabWidget.setCurrentWidget(movieinfowidget)

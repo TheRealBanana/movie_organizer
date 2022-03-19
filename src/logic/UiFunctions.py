@@ -99,7 +99,8 @@ class UIFunctions:
             searchresultdata[field] = newdata
             searchresultitem.setData(QtCore.Qt.UserRole, searchresultdata)
             # Alt way to get item from main library view
-            libitem = self.uiref.movieLibraryInfoWidget.movieLibraryList.findItems(searchresultdata["cleantitle"], QtCore.Qt.MatchExactly)[0]
+            #TODO FIXME This is broken because findItems looks at the titles of each which wont work with matchexact.
+            libitem = self.uiref.movieLibraryInfoWidget.movieLibraryList.findItems("(%s)        %s" % (searchresultdata["year"], searchresultdata["cleantitle"]), QtCore.Qt.MatchStartsWith)[0]
         else: #Not from a search tab
             libitem = self.uiref.movieLibraryInfoWidget.movieLibraryList.currentItem()
         #Update main library view

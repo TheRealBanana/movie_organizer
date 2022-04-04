@@ -91,7 +91,7 @@ class movieLibraryInfoWidget(QtWidgets.QWidget):
         self.updownsortCheckbox.stateChanged['int'].connect(self.sortOptionsUpdate)
 
     def sortOptionsUpdate(self, _):
-        #Clear any selection and  temporarily disable the currentItemChanged signal
+        #Clear any selection and temporarily disable the currentItemChanged signal
         #These two are slowing things down when rebuilding the list
         self.movieLibraryList.clearSelection()
         self.movieLibraryList.currentItemChanged.disconnect()
@@ -125,7 +125,7 @@ class movieLibraryInfoWidget(QtWidgets.QWidget):
                         return 9999999999
                 return mktime(strptime(s["lastplay"], '%d/%b/%Y-%I:%M:%S %p'))
         else:
-            sortfunc = lambda r: r[sortkey]
+            sortfunc = lambda r: str(r[sortkey])
 
         oldlist.sort(key=sortfunc, reverse=order)
         if mode != "title":
@@ -145,6 +145,8 @@ class movieLibraryInfoWidget(QtWidgets.QWidget):
                     hours = item[extratag]//60
                     minutes = item[extratag]%60
                     listitemtitle += " [%sh %sm]" % (hours, minutes)
+                elif extratag == "year":
+                    listitemtitle += " [%s]" % item["cleanyear"]
                 else: listitemtitle += " [%s]" % item[extratag]
 
             newitem = QtWidgets.QListWidgetItem(listitemtitle)

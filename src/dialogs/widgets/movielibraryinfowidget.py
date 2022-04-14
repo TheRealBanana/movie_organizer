@@ -124,10 +124,14 @@ class movieLibraryInfoWidget(QtWidgets.QWidget):
                     else:
                         return 9999999999
                 return mktime(strptime(s["lastplay"], '%d/%b/%Y-%I:%M:%S %p'))
+        elif sortkey == "runtime":
+            sortfunc = lambda r: int(r[sortkey])
+
         else:
             sortfunc = lambda r: str(r[sortkey])
 
         oldlist.sort(key=sortfunc, reverse=order)
+        #If we are sorting by something other than the title, put that info after the title.
         if mode != "title":
             extratag = sortkey
         else:
@@ -142,8 +146,8 @@ class movieLibraryInfoWidget(QtWidgets.QWidget):
             listitemtitle = "(%s)        %s" % (item["cleanyear"], item["cleantitle"])
             if extratag is not None:
                 if extratag == "runtime":
-                    hours = item[extratag]//60
-                    minutes = item[extratag]%60
+                    hours = item["runtime"]//60
+                    minutes = item["runtime"]%60
                     listitemtitle += " [%sh %sm]" % (hours, minutes)
                 elif extratag == "year":
                     listitemtitle += " [%s]" % item["cleanyear"]

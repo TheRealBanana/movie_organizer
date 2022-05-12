@@ -127,8 +127,9 @@ class movieSearchJob(QObject):
             #Figure out the timecode by using the timecode dict and the index of our match
             matchidx = result["subtitles"]["corpus"].lower().index(self.dlgsearch.lower())
             lasti = 0
-            for lasti in result["subtitles"]["timecodes"]:
-                if lasti < matchidx:
+            for tcindex in result["subtitles"]["timecodes"]:
+                if tcindex < matchidx:
+                    lasti = tcindex
                     continue
                 break
             #TODO This is just placeholder stuffs removeme
@@ -136,8 +137,7 @@ class movieSearchJob(QObject):
             hours, minutes, seconds = re.match(r"([0-9]{1,2}):([0-9]{2}):([0-9]{2})(?:,[0-9]{3}|\.[0-9]{2})", result["subtitles"]["timecodes"][lasti]).groups()
             #TODO One idea here is to maybe subtrack a few seconds off the timecode so that its queued up
             #at a point just BEFORE the quote, so you have time to get into the scene before its said.
-            #Trying 10 seconds for now
-            timecodeseconds = (int(hours)*60*60) + (int(minutes)*60) + int(seconds) - 5
+            timecodeseconds = (int(hours)*60*60) + (int(minutes)*60) + int(seconds) - 2
             print(timecodeseconds)
             vlcpath = r"C:\Program Files (x86)\VideoLAN\VLC\vlc.exe"
             #TODO Maybe we should print a couple timecodes worth of subs
@@ -150,8 +150,8 @@ class movieSearchJob(QObject):
             movielink = "%s --network-caching=15000 --start-time %s \"%s\"" % (vlcpath, timecodeseconds, result["filelocation"] + "\\" + result["filename"])
             #We removed punctuation earlier to make matching easier but now it looks goofy
             #Separating lines by a newline makes it look a bit better
-            #nicequote = r["subtitles"]["corpus"][indexlist[timecodeidx-1]:lasti] + "\n" # Grab one line before
-            nicequote = ""
+            nicequote = result["subtitles"]["corpus"][indexlist[timecodeidx-1]:lasti] + "\n" # Grab one line before
+            #nicequote = ""
             for n in range(1,5): #How many lines ahead to grab?
                 #Ran out of lines?
                 if timecodeidx+n > len(indexlist)-1:

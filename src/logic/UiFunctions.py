@@ -70,6 +70,8 @@ class UIFunctions:
     def guimods(self):
         #Remove close button from main search tab
         self.uiref.searchTabWidget.tabBar().tabButton(0, QtWidgets.QTabBar.RightSide).resize(0,0)
+        #Set window title
+        self.MainWindow.setWindowTitle("Movie Organizer")
 
     def updatePlayCount(self, movietitle):
         #Update the database and then update the display search results and main library view
@@ -235,9 +237,17 @@ class UIFunctions:
         #Update library tab title to include library size
         self.uiref.mainTabWidget.setTabText(self.uiref.mainTabWidget.indexOf(self.uiref.movieLibraryTab), "Movie Library (%d)" % len(keys))
 
+    def createNameLinks(self, data):
+        #directors, writers, producers, composers, and genres are all simple lists, actors is a list of dictionaries.
+        #TODO figure out what href link will work, too tired now
+
+        return data
+
     def updateLibraryDisplay(self, newitem, _, widget):
         if newitem is None: return #Not sure whats up here
         data = newitem.data(QtCore.Qt.UserRole)
+        #Adds links to the names in the library display for quick searching
+        data = self.createNameLinks(data)
         #0,dbdata["title"]
         #1,dbdata["directors"]
         #2,dbdata["writers"]
@@ -273,8 +283,10 @@ class UIFunctions:
                 listdata[i] = ""
                 for a in d:
                     if isinstance(a, dict):
+                        #Should only ever be actors that gets formatted here
                         listdata[i] += "<br>%s" % "{name} as {character}".format(**a)
                     else:
+                        #This formats data for the keys: directors, writers, producers, composers, genres, and some actors
                         listdata[i] += "<br>%s" % a
         data = dict(zip(data.keys(), listdata))
         data["clickableurl"] = data["filelocation"] + ossep + data["filename"]

@@ -168,7 +168,6 @@ class movieLibraryInfoWidget(QtWidgets.QWidget):
         if "network-caching" in fixedurl:
             _ = Popen(fixedurl, stdout=PIPE)
         else:
-            fixedurl = QtCore.QUrl.fromPercentEncoding(bytes(url.toString(), "utf-8"))
             QtGui.QDesktopServices.openUrl(QtCore.QUrl.fromLocalFile(fixedurl))
             moviedata = self.movieLibraryList.currentItem().data(QtCore.Qt.UserRole)
             currentmovietitle = moviedata["title"]

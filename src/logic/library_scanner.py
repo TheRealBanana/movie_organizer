@@ -12,7 +12,7 @@ from difflib import SequenceMatcher
 # Using a rather low match ratio just to weed out the completely wrong results but try to keep partial title matches (might catch on sequels tho)
 MASTER_RATIO = 0.85
 
-S3DATASET_LOCATION = "C:\imdb_data\dbout\imdbdataset_Sept.27.2021.sqlite"
+S3DATASET_LOCATION = r"H:\imdb_data\dbout\imdbdataset_Oct.19.2023.sqlite"
 
 
 IGNORE_FOLDERS = ["ZZZZZZZZZZZZZZZZ"]
@@ -26,8 +26,8 @@ VIDEO_EXTENSIONS=["avi", "divx", "amv", "mpg", "mpeg", "mpe", "m1v", "m2v",
 
 REMOVE_KEYWORDS = ["proper", "repack", "unrated", "part 1", "part 2", "2in1"]
 
-movie_title_regex =        re.compile("^(.*?)[\s\.]?((?:19|20)[0-9]{2}).*?(720|1080|2160)", re.IGNORECASE)
-movie_title_regex_noyear = re.compile("^(.*)[\s\.]?((?:19|20)[0-9]{2})?.*?(720|1080|2160)", re.IGNORECASE)
+movie_title_regex =        re.compile(r"^(.*?)[\s\.]?((?:19|20)[0-9]{2}).*?(720|1080|2160)", re.IGNORECASE)
+movie_title_regex_noyear = re.compile(r"^(.*)[\s\.]?((?:19|20)[0-9]{2})?.*?(720|1080|2160)", re.IGNORECASE)
 #group 1 = movie title (might have trailing space)
 #group 2 = year
 #group 3 = resolution
@@ -35,13 +35,13 @@ def is_movie_file(filename):
     return True if (movie_title_regex.search(filename) is not None or movie_title_regex_noyear.search(filename) is not None) else False
 
 def is_video_file(filename):
-    fileextensionreg = re.match("^.*?\.([a-z0-9]{1,6})$", filename, re.IGNORECASE)
+    fileextensionreg = re.match(r"^.*?\.([a-z0-9]{1,6})$", filename, re.IGNORECASE)
     if fileextensionreg is not None:
         fext = fileextensionreg.group(1)
         if fext in VIDEO_EXTENSIONS:
             # Ignore sample videos and TV shows
-            if not re.match("(^.*?sample\.([a-z0-9]{1,6})$|^sample.*$)", filename, re.IGNORECASE) and \
-               not re.search("((([se])[0-9]{1,2}){2}|[0-9]{1,2}x[0-9]{1,2})", filename, re.IGNORECASE):
+            if not re.match(r"(^.*?sample\.([a-z0-9]{1,6})$|^sample.*$)", filename, re.IGNORECASE) and \
+               not re.search(r"((([se])[0-9]{1,2}){2}|[0-9]{1,2}x[0-9]{1,2})", filename, re.IGNORECASE):
                     return True
     return False
 
@@ -83,6 +83,7 @@ class imdbInfoGrabber(QObject):
     workFinished = pyqtSignal()
     progressUpdate = pyqtSignal(str)
     processingFile = pyqtSignal()
+    manualProgressLabelSet = pyqtSignal(str)
 
     def __init__(self, filedata, ithread, checkFunc, parent=None):
         super(imdbInfoGrabber, self).__init__(parent)
@@ -145,6 +146,13 @@ class imdbInfoGrabber(QObject):
 
     def getInfo(self):
         ib = imdb.IMDb() # Online check
+        if os.access(S3DATASET_LOCATION, os.F_OK) is False:
+            detailserrormsg = "Unable to find IMDB S3 sqlite database file at: %s\nCanceling scan..." % S3DATASET_LOCATION
+            self.progressUpdate.emit(detailserrormsg)
+            print(detailserrormsg)
+            self.manualProgressLabelSet.emit("ABORT: Unable to locate IMDB db, check S3DATASET_LOCATION in library_scanner.py")
+            self.stopping = True
+            return
         ia = imdb.IMDb("s3", "sqlite:///%s" % S3DATASET_LOCATION)
         #self.filedata[tld] = [ [filename, foldername], ...]
         for tld, files in self.filedata.items():
@@ -232,6 +240,9 @@ class imdbInfoGrabber(QObject):
                         self.progressUpdate.emit("Too short a runtime, skipping id %s" % result.movieID)
                         continue
                     #Now that we're sure, lets pull the data from imdb online. The S3 dataset has lots of problems.
+                    #Online check is broken because of old imdbpy version. New version is broken in other ways.
+                    #Appears broken but when disabled we get less data back than when its enabled. It DOES error out, but
+                    #apparently thats not getting in the way of its actual function. Should find a way to hide the errors maybe.
                     movie_data = ib.get_movie(result.movieID).data
                     if "director" not in movie_data:
                         continue
@@ -284,6 +295,8 @@ class imdbInfoGrabber(QObject):
                         dbdata["composers"] += get_person_names(movie_data["composer"])
                     if len(dbdata["composers"]) == 0: dbdata["composers"] = "NO_COMPOSER_FOUND"
 
+                    if "genres" not in movie_data:
+                        continue
                     dbdata["genres"] = str(movie_data["genres"])
                     dbdata["runtime"] = movie_data["runtimes"][0]
                     #cover url isnt in the text data files so we wont be using this for now
@@ -329,7 +342,8 @@ class Crawler(QObject):
 
     def crawl(self, directory):
         if self.stopping is True: return None
-
+        if os.access(directory, os.F_OK) is False:
+            return None
         allfiles = os.listdir(directory)
         dirs = []
         for d in allfiles:
@@ -444,7 +458,8 @@ class LibraryScanner(QObject):
 
     def getProgressBarFilecount(self):
         oldlabel = str(self.progressbar.progressLabel.text())
-        oldcount = int(re.search("%\]\s+(-?[0-9]{1,10})\s+", oldlabel).group(1))
+        oldcountreg = re.search("%\]\s+(-?[0-9]{1,10})\s+", oldlabel)
+        oldcount = "0" if oldcountreg is None else int(oldcountreg.group(1))
         return oldcount
 
     def updateImdbProgressBar(self):
@@ -455,6 +470,8 @@ class LibraryScanner(QObject):
         self.progressbar.progressBar.setValue(newcount)
         self.progressbar.progressLabel.setText(progresslabel)
 
+    def setImdbProgressBarLabel(self, newlabel):
+        self.progressbar.progressLabel.setText(newlabel)
 
     def totalFileCountUpdate(self, filecount):
         #User to track total files
@@ -500,6 +517,7 @@ class LibraryScanner(QObject):
         self.imdbworker.moveToThread(ithread)
         ithread.started.connect(self.imdbworker.getInfo)
         self.imdbworker.newTitleData.connect(self.imdbThreadUpdateCallback)
+        self.imdbworker.manualProgressLabelSet.connect(self.setImdbProgressBarLabel)
         self.imdbworker.workFinished.connect(self.imdbThreadFinishedCallback)
         self.imdbworker.progressUpdate.connect(self.updateProgressbarDetails)
         self.imdbworker.processingFile.connect(self.updateImdbProgressBar)

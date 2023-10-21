@@ -234,6 +234,8 @@ class MovieLibrary:
                     valuerangereg = re.search("([0-9]+(?:\.[0-9]+)?)[\s]*-[\s]*([0-9]+(?:\.[0-9]+)?)", value.strip())
                     if valuerangereg is not None:
                         valuerange = [float(valuerangereg.group(1)), float(valuerangereg.group(2))]
+                        #Corrections for weirdness.
+
                         if valuerange[0] > valuerange[1]: #Start of the range higher than the end
                             valuerange.reverse()
                         querystr = "CAST(%s as %s) BETWEEN %s AND %s" % (field, "REAL" if field == "imdb_rating" else "INTEGER", valuerange[0], valuerange[1])
@@ -258,6 +260,7 @@ class MovieLibrary:
             params.append(querystr)
         results = self._SEARCH("".join(params))
         results["hlsections"] = hlsections
+        print("".join(params))
         return results
 
     @checkDbOpen

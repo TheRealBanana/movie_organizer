@@ -183,8 +183,13 @@ class SubtitleExtractor(QObject):
             rawsubs = self.extractSubtitlesFromVideo(vidpath, tid, self.moviedata["title"])
             if rawsubs is not None and len(rawsubs) > 4000:
                 break
+            else:
+                #print("TOOSHORT")
+                continue
         #Did we actually get anything?
         if rawsubs is None or len(rawsubs) < 4000:
+            #print("TOOSHORT THREADQUIT")
+            self.threadFinished.emit(self)
             return
         if self.stopping: return
         #Emitdata is just the data we need for addSubs()

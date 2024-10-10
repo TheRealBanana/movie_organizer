@@ -3,6 +3,8 @@ from PyQt5.QtWidgets import QListWidgetItem
 from difflib import SequenceMatcher
 import re
 
+VLC_PATH = r"C:\Program Files\VideoLAN\VLC\vlc.exe"
+
 #Change the way we highlight results
 START_HIGHLIGHT = '<span style="background-color: #FFFF00">'
 END_HIGHLIGHT = "</span>"
@@ -139,7 +141,6 @@ class movieSearchJob(QObject):
             #at a point just BEFORE the quote, so you have time to get into the scene before its said.
             timecodeseconds = (int(hours)*60*60) + (int(minutes)*60) + int(seconds) - 2
             print(timecodeseconds)
-            vlcpath = r"C:\Program Files (x86)\VideoLAN\VLC\vlc.exe"
             #TODO Maybe we should print a couple timecodes worth of subs
             #Or at least get the length of this particular sub bit and print it completely
             print("FOUND FOR QUERY %s at index %s" % (self.dlgsearch, matchidx))
@@ -147,7 +148,7 @@ class movieSearchJob(QObject):
             #Find the index of lasti so we can pull in the next few lines too
             indexlist = list(result["subtitles"]["timecodes"].keys())
             timecodeidx = indexlist.index(lasti)
-            movielink = "%s --network-caching=15000 --start-time %s \"%s\"" % (vlcpath, timecodeseconds, result["filelocation"] + "\\" + result["filename"])
+            movielink = "%s --network-caching=15000 --start-time %s \"%s\"" % (VLC_PATH, timecodeseconds, result["filelocation"] + "\\" + result["filename"])
             #We removed punctuation earlier to make matching easier but now it looks goofy
             #Separating lines by a newline makes it look a bit better
             nicequote = result["subtitles"]["corpus"][indexlist[timecodeidx-1]:lasti] + "\n" # Grab one line before

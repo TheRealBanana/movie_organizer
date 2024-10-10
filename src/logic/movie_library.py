@@ -20,6 +20,7 @@ def fixDbData(data, fieldlist):
     return returndata
 
 #helper objects
+# TODO We should update this to make use of the proper 'with threading.Lock():'
 def checkDbOpen(func):
     def dec(*args, **kwargs):
         if args[0].dbmutex is True:
@@ -32,6 +33,8 @@ def checktype(obj):
     if not isinstance(obj, OD):
         raise(Exception("addMovie: Encountered wrong dictionary type, expected OrderedDict."))
 
+
+# TODO We should update this to make use of the proper 'with threading.Lock():
 class getDbCursor(object):
     def __init__(self, dbpath, dbmutex, contype='r'):
         #We can either wait for it or just error out. Since I don't know if this will ever be called Its better to error.

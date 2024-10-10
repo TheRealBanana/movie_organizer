@@ -1,7 +1,7 @@
 import re
 from os import sep as ossep
 from datetime import datetime
-from PyQt5 import QtWidgets, QtCore
+from PyQt5 import QtWidgets, QtCore, QtGui
 from collections import OrderedDict
 from .movie_library import MovieLibrary
 from .library_scanner import LibraryScanner
@@ -10,7 +10,7 @@ from .search import SearchManager
 from .options_dialog_functions import OptionsDialogFunctions
 from dialogs.options_dialog import Ui_OptionsDialog
 from dialogs.widgets.searchParameterWidget import SearchParameterWidget
-from dialogs.widgets.movielibraryinfowidget import movieLibraryInfoWidget
+from dialogs.widgets.movielibraryinfowidget import movieLibraryInfoWidget, GOODSUBS_LISTITEM_BG_COLOR
 
 def qstringFixer(value):
     if isinstance(value, QtCore.QString):
@@ -37,8 +37,6 @@ def qtypeFixer(value):
             fixeddict[str(key)] = val
         value = fixeddict
     return value
-
-
 
 class UIFunctions:
     def __init__(self, uiref, MainWindow):
@@ -72,6 +70,8 @@ class UIFunctions:
         self.uiref.searchTabWidget.tabBar().tabButton(0, QtWidgets.QTabBar.RightSide).resize(0,0)
         #Set window title
         self.MainWindow.setWindowTitle("Movie Organizer")
+        #Give the movie library info widget the ability to check for subtitles
+        self.uiref.movieLibraryInfoWidget.setSubRef(self.subtitleLibrary)
 
     def updatePlayCount(self, movietitle):
         #Update the database and then update the display search results and main library view
@@ -227,7 +227,11 @@ class UIFunctions:
         keys.sort()
         for k in keys:
             d = r[k]
-            listitem = QtWidgets.QListWidgetItem("(%s)        %s" % (d["year"], d["title"]))
+            listitem = QtWidgets.QListWidgetItem(f'({d["year"]})        {d["title"]}')
+            #Check if we have subtitles for this title, if so add an indicator like changing the background
+            if self.subtitleLibrary.checkForSubs(d["title"]):
+                bgcolor = QtGui.QColor(*GOODSUBS_LISTITEM_BG_COLOR) # Kind of a light green background
+                listitem.setBackground(QtGui.QBrush(bgcolor))
             listitem.setData(QtCore.Qt.UserRole, d)
             listitem.setToolTip(str(d["filename"]))
             self.uiref.movieLibraryInfoWidget.movieLibraryList.addItem(listitem)

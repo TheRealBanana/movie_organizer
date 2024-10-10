@@ -3,6 +3,10 @@ from subprocess import Popen, PIPE
 from .starratingwidget import starRatingWidget
 from time import mktime, strptime
 
+# So its slightly easier to change the color of the highlight for titles in the library with subtitle data saved
+#GOODSUBS_LISTITEM_BG_COLOR = (150, 255, 140) # More vibrant green
+GOODSUBS_LISTITEM_BG_COLOR = (190, 255, 190) # Faint green
+
 class movieLibraryInfoWidget(QtWidgets.QWidget):
     updatePlayCount = QtCore.pyqtSignal(str)
     movieSelectionChanged = QtCore.pyqtSignal(QtCore.QVariant, QtCore.QVariant, QtCore.QVariant)
@@ -10,6 +14,7 @@ class movieLibraryInfoWidget(QtWidgets.QWidget):
     def __init__(self, parent=None):
         super(movieLibraryInfoWidget, self).__init__(parent=parent)
         self.setupWidget()
+        self.sublibref = None
 
     def setupWidget(self):
         self.setObjectName("movieLibraryInfoWidget")
@@ -90,6 +95,9 @@ class movieLibraryInfoWidget(QtWidgets.QWidget):
         self.sortModeDropdown.currentTextChanged["QString"].connect(self.sortOptionsUpdate)
         self.updownsortCheckbox.stateChanged['int'].connect(self.sortOptionsUpdate)
 
+    def setSubRef(self, subref):
+        self.sublibref = subref
+
     def sortOptionsUpdate(self, _):
         #Clear any selection and temporarily disable the currentItemChanged signal
         #These two are slowing things down when rebuilding the list
@@ -156,6 +164,10 @@ class movieLibraryInfoWidget(QtWidgets.QWidget):
             newitem = QtWidgets.QListWidgetItem(listitemtitle)
             newitem.setData(QtCore.Qt.UserRole, item)
             newitem.setToolTip(str(item["filename"]))
+            #Check if we have subtitles for this title, if so add an indicator like changing the background
+            if self.sublibref.checkForSubs(item["cleantitle"]):
+                bgcolor = QtGui.QColor(*GOODSUBS_LISTITEM_BG_COLOR) # Kind of a light green background
+                newitem.setBackground(QtGui.QBrush(bgcolor))
             self.movieLibraryList.addItem(newitem)
 
         #Redo old connection

@@ -10,7 +10,7 @@ from .search import SearchManager
 from .options_dialog_functions import OptionsDialogFunctions
 from dialogs.options_dialog import Ui_OptionsDialog
 from dialogs.widgets.searchParameterWidget import SearchParameterWidget
-from dialogs.widgets.movielibraryinfowidget import movieLibraryInfoWidget, GOODSUBS_LISTITEM_BG_COLOR
+from dialogs.widgets.movielibraryinfowidget import movieLibraryInfoWidget, GOODSUBS_LISTITEM_BG_COLOR, NOSUBS_LISTITEM_BG_COLOR
 
 def qstringFixer(value):
     if isinstance(value, QtCore.QString):
@@ -229,8 +229,8 @@ class UIFunctions:
             d = r[k]
             listitem = QtWidgets.QListWidgetItem(f'({d["year"]})        {d["title"]}')
             #Check if we have subtitles for this title, if so add an indicator like changing the background
-            if self.subtitleLibrary.checkForSubs(d["title"]):
-                bgcolor = QtGui.QColor(*GOODSUBS_LISTITEM_BG_COLOR) # Kind of a light green background
+            if not self.subtitleLibrary.checkForSubs(d["title"]):
+                bgcolor = QtGui.QColor(*NOSUBS_LISTITEM_BG_COLOR) # Kind of a light green background
                 listitem.setBackground(QtGui.QBrush(bgcolor))
             listitem.setData(QtCore.Qt.UserRole, d)
             listitem.setToolTip(str(d["filename"]))
@@ -309,7 +309,6 @@ class UIFunctions:
 <b>COMPOSERS:</b>  {composers}<br><br>
 <b>GENRES:</b>  {genres}<br><br>
 <b>RUNTIME:</b>  {runtime}<br><br>
-<b>COVER_URL:</b>  {cover_url}<br><br>
 <b>PLAYCOUNT:</b>  {playcount}<br><br>
 <b>LASTPLAY:</b>  {lastplay}<br><br>
 <b>FILENAME:</b>  {filename}<br><br>

@@ -6,6 +6,7 @@ from time import mktime, strptime
 # So its slightly easier to change the color of the highlight for titles in the library with subtitle data saved
 #GOODSUBS_LISTITEM_BG_COLOR = (150, 255, 140) # More vibrant green
 GOODSUBS_LISTITEM_BG_COLOR = (190, 255, 190) # Faint green
+NOSUBS_LISTITEM_BG_COLOR = (255, 190, 190) # Faint red
 
 class movieLibraryInfoWidget(QtWidgets.QWidget):
     updatePlayCount = QtCore.pyqtSignal(str)
@@ -165,8 +166,8 @@ class movieLibraryInfoWidget(QtWidgets.QWidget):
             newitem.setData(QtCore.Qt.UserRole, item)
             newitem.setToolTip(str(item["filename"]))
             #Check if we have subtitles for this title, if so add an indicator like changing the background
-            if self.sublibref.checkForSubs(item["cleantitle"]):
-                bgcolor = QtGui.QColor(*GOODSUBS_LISTITEM_BG_COLOR) # Kind of a light green background
+            if not self.sublibref.checkForSubs(item["cleantitle"]):
+                bgcolor = QtGui.QColor(*NOSUBS_LISTITEM_BG_COLOR) # Kind of a light green background
                 newitem.setBackground(QtGui.QBrush(bgcolor))
             self.movieLibraryList.addItem(newitem)
 

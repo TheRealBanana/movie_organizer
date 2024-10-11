@@ -12,7 +12,7 @@ from difflib import SequenceMatcher
 # Using a rather low match ratio just to weed out the completely wrong results but try to keep partial title matches (might catch on sequels tho)
 MASTER_RATIO = 0.85
 
-S3DATASET_LOCATION = r"H:\imdb_data\dbout\imdbdataset_Oct.19.2023.sqlite"
+S3DATASET_LOCATION = r"E:\s3_dataset_sqlite_out\imdbdataset_Oct.19.2023.sqlite"
 
 
 IGNORE_FOLDERS = ["ZZZZZZZZZZZZZZZZ"]
@@ -115,9 +115,11 @@ class imdbInfoGrabber(QObject):
             # Sometimes the wrong results are still only a year difference. Just hope the first result is ours. :/
             if ("kind" in result.data and result.data["kind"] != "movie") or \
                     result.movieID is None:
+                #print("kind skip")
                 continue
             result.extradata = ia.get_movie(result.movieID).data
             if "title" not in result.extradata:
+                print("title skip")
                 continue
             if self.checkexistsfunc(result.extradata["title"]):
                 #self.progressUpdate.emit("Skipping2 %s, already in database" % result.extradata["title"])
@@ -186,7 +188,7 @@ class imdbInfoGrabber(QObject):
                 for kw in REMOVE_KEYWORDS:
                     movietitle = re.sub(kw, "", movietitle, flags=re.IGNORECASE)
                     if freg2: movietitle2 = re.sub(kw, "", movietitle2, flags=re.IGNORECASE)
-
+                
                 if freg is not None and freg.group(2) is not None:
                     movieyear = freg.group(2)
                 elif freg2 is not None and freg2.group(2) is not None:
@@ -205,6 +207,7 @@ class imdbInfoGrabber(QObject):
                 #searchdata = []
                 #sleep(3)
                 if len(searchdata) == 0:
+                    print("No search results for %s." % movietitle)
                     continue
                 #Try and find the one that has a matching year, best we can do to be sure
                 for result in searchdata:
@@ -221,7 +224,10 @@ class imdbInfoGrabber(QObject):
                     #Some titles in the IMDb have unicode characters that aren't
                     #suitable for file names so we need to convert those to ascii
                     #Trying both titles in case the folder name is more accurate
-                    if SequenceMatcher(None, movietitle.lower(), unicodedata.normalize('NFKD', movie_data["title"].lower())).ratio() < MASTER_RATIO and \
+                    #TODO Aug2024 Is this a bug below? movietitle2 is the folder name and I thought we were testing to see if one or the other was better
+                    #Well if one is more accurate maybe the other one isn't accurate enough and it gets passed on. Seems like this should be an 'or' instead of an 'and'.
+                    #If one or the other is good enough it gets through, instead of requiring both the folder name and file name to be a good enough match.
+                    if SequenceMatcher(None, movietitle.lower(), unicodedata.normalize('NFKD', movie_data["title"].lower())).ratio() < MASTER_RATIO or \
                        SequenceMatcher(None, movietitle2.lower(), unicodedata.normalize('NFKD', movie_data["title"].lower())).ratio() < MASTER_RATIO:
                         #print("SMatcher SKIP %s   %s  -  %s" % (SequenceMatcher(None, movietitle.lower(), movie_data["title"].lower()).ratio(), movietitle.lower(), movie_data["title"].lower()))
                         continue

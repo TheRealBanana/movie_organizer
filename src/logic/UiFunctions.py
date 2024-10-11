@@ -63,6 +63,22 @@ class UIFunctions:
         self.uiref.newSearchParameterButton.clicked.connect(self.newSearchParameterButtonPressed)
         self.uiref.searchButton.clicked.connect(self.searchButtonPressed)
         self.uiref.searchTabWidget.tabCloseRequested['int'].connect(self.closeSearchTabPressed)
+        #Add context menu to the QListWidget library view
+        self.uiref.movieLibraryInfoWidget.movieLibraryList.customContextMenuRequested["QPoint"].connect(self.libraryItemRightClickMenu)
+
+    def libraryItemRightClickMenu(self, qpoint):
+        globalclickcoords = self.uiref.movieLibraryInfoWidget.movieLibraryList.mapToGlobal(qpoint)
+        selected_movie_title = self.uiref.movieLibraryInfoWidget.movieLibraryList.currentItem().data(QtCore.Qt.UserRole)["title"]
+        editmenu = QtWidgets.QMenu()
+        editaction = QtWidgets.QAction()
+        editaction.setText("Edit Subtitles")
+        editaction.triggered.connect(self.editSubtitlesDialog)
+        editmenu.addAction(editaction)
+        editmenu.exec_(globalclickcoords)
+
+    def editSubtitlesDialog(self):
+        selected_movie_title = self.uiref.movieLibraryInfoWidget.movieLibraryList.currentItem().data(QtCore.Qt.UserRole)["title"]
+        print(f"CREATE DIALOG TO EDIT SUBS FOR {selected_movie_title}")
 
     #A place for any dynamic modifications of the GUI.
     def guimods(self):

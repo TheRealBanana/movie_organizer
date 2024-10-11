@@ -36,6 +36,7 @@ class movieLibraryInfoWidget(QtWidgets.QWidget):
         self.gridLayout.addWidget(self.sortLabel, 0, 0, 1, 1)
         self.movieLibraryList = QtWidgets.QListWidget(self.leftSideContainer)
         self.movieLibraryList.setObjectName("movieLibraryList")
+        self.movieLibraryList.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.gridLayout.addWidget(self.movieLibraryList, 2, 0, 1, 4)
         self.sortModeDropdown = QtWidgets.QComboBox(self.leftSideContainer)
         self.sortModeDropdown.setMinimumSize(QtCore.QSize(120, 0))

@@ -17,7 +17,7 @@ DATABASE_PATH = "./subtitles.db"
 class SubtitleLibrary:
     def __init__(self, DBPATH=DATABASE_PATH):
         self.dbmutex = False
-        self.subsdict = {}
+        #self.subsdict = {}
         self.dbpath = DBPATH
         self.checkForSubtitleDb()
         self.fieldlist = self.getFieldList()
@@ -72,7 +72,7 @@ class SubtitleLibrary:
         if self.checkForSubs(movietitle):
             with getDbCursor(self.dbpath, self.dbmutex, "w") as dbcursor:
                 dbcursor.execute("DELETE FROM subtitle_data WHERE title=?", (movietitle,))
-            del(self.subsdict[movietitle])
+            #if movietitle in self.subsdict: del(self.subsdict[movietitle])
 
     @checkDbOpen
     def addSubs(self, subsdata):
@@ -85,7 +85,7 @@ class SubtitleLibrary:
                                   subsdata["subtitles"],
                                   subsdata["extra1"])
                                  )
-            self.subsdict[subsdata["title"]] = subsdata
+            #self.subsdict[subsdata["title"]] = subsdata
 
     #Return subtitles for one movie
     @checkDbOpen

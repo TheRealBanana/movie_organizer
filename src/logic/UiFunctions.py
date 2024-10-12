@@ -77,8 +77,8 @@ class UIFunctions:
         editmenu.exec_(globalclickcoords)
 
     def editSubtitlesDialog(self):
-        selected_movie_title = self.uiref.movieLibraryInfoWidget.movieLibraryList.currentItem().data(QtCore.Qt.UserRole)["title"]
-        print(f"CREATE DIALOG TO EDIT SUBS FOR {selected_movie_title}")
+        selected_movie_data = self.uiref.movieLibraryInfoWidget.movieLibraryList.currentItem().data(QtCore.Qt.UserRole)
+        selected_movie_title = selected_movie_data["title"]
         dialog = QtWidgets.QDialog(self.MainWindow)
         ui = Ui_editsubs_dialog()
         ui.setupUi(dialog)
@@ -86,19 +86,25 @@ class UIFunctions:
         subdata = ""
         if self.subtitleLibrary.checkForSubs(selected_movie_title):
             subdata = self.subtitleLibrary.getSubs(selected_movie_title)
-        ui.setupData(selected_movie_title, subdata)
+        ui.setupData(selected_movie_title, subdata, selected_movie_data["filename"])
         returnstatus = dialog.exec_()
-        if returnstatus is True:
-            #Save the updated subtitles for that title. Have to delete the title first then add.
-            #Its dumb but im not fixing that right now.
-            #Build the dictionary with the needed data.
-            #TODO Need a shitton of data for this, filename, folder, etc. Im stopping here for the night.
+        if bool(returnstatus) is True:
+            subtitletext = ui.subtitle_text.toPlainText()
+            subdata = {
+                "title": selected_movie_title,
+                "filename":  selected_movie_data["filename"],
+                "filelocation": selected_movie_data["filelocation"],
+                "subtitles": subtitletext,
+                "extra1": ""
+            }
+            #The delSubs() function does a check to see if the title exists before it runs,
+            #and it just returns if the title doesnt exist. So no need to check here.
             self.subtitleLibrary.delSubs(selected_movie_title)
-
-            ui.subtitle_text.toPlainText()
-            self.subtitleLibrary.addSubs
-            pass
-        print()
+            if len(subtitletext) > 0: self.subtitleLibrary.addSubs(subdata) # Saving an empty page will just delete the subs
+            #Tell the user we did it
+            infomessage = f"Successfully updated the subtitles database for {selected_movie_title}. \n\nUpdate size: {len(subtitletext)}"
+            QtWidgets.QMessageBox.information(self.MainWindow, "Updated subtitles database", infomessage)
+            print(infomessage)
 
     #A place for any dynamic modifications of the GUI.
     def guimods(self):

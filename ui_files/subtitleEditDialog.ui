@@ -21,6 +21,9 @@
        <pointsize>22</pointsize>
       </font>
      </property>
+     <property name="toolTip">
+      <string>MOVIE_FILENAME</string>
+     </property>
      <property name="text">
       <string>MOVIE_TITLE</string>
      </property>

@@ -16,6 +16,7 @@ class Ui_editsubs_dialog(object):
         self.movie_title_label.setTextFormat(QtCore.Qt.PlainText)
         self.movie_title_label.setAlignment(QtCore.Qt.AlignCenter)
         self.movie_title_label.setObjectName("movie_title_label")
+        self.movie_title_label.setToolTip("MOVIE_FILENAME")
         self.verticalLayout.addWidget(self.movie_title_label)
         self.subtitle_text = QtWidgets.QTextEdit(editsubs_dialog)
         font = QtGui.QFont()
@@ -52,6 +53,7 @@ class Ui_editsubs_dialog(object):
         self.cancel_button.clicked.connect(editsubs_dialog.reject)
         QtCore.QMetaObject.connectSlotsByName(editsubs_dialog)
 
-    def setupData(self, movie_title, subtitles):
+    def setupData(self, movie_title, subtitles, filename):
         self.movie_title_label.setText(movie_title)
         self.subtitle_text.setPlainText(subtitles)
+        self.movie_title_label.setToolTip(filename)

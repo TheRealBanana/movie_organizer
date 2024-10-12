@@ -87,6 +87,16 @@ class SubtitleLibrary:
                                  )
             self.subsdict[subsdata["title"]] = subsdata
 
+    #Return subtitles for one movie
+    @checkDbOpen
+    def getSubs(self, movietitle):
+        if self.checkForSubs(movietitle) is True:
+            with getDbCursor(self.dbpath, self.dbmutex, "w") as dbcursor:
+                subdata = dbcursor.execute(f"SELECT subtitles FROM subtitle_data where title=\"{movietitle}\"").fetchone()[0]
+                return subdata
+        else:
+            return None
+
     #Simple search, just returning subdata for whatever movies are in movielist
     def search(self, movielist):
         if len(movielist) == 0: return

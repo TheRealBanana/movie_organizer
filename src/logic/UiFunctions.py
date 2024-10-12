@@ -11,6 +11,8 @@ from .options_dialog_functions import OptionsDialogFunctions
 from dialogs.options_dialog import Ui_OptionsDialog
 from dialogs.widgets.searchParameterWidget import SearchParameterWidget
 from dialogs.widgets.movielibraryinfowidget import movieLibraryInfoWidget, GOODSUBS_LISTITEM_BG_COLOR, NOSUBS_LISTITEM_BG_COLOR
+from dialogs.editSubsDialog import Ui_editsubs_dialog
+
 
 def qstringFixer(value):
     if isinstance(value, QtCore.QString):
@@ -68,10 +70,8 @@ class UIFunctions:
 
     def libraryItemRightClickMenu(self, qpoint):
         globalclickcoords = self.uiref.movieLibraryInfoWidget.movieLibraryList.mapToGlobal(qpoint)
-        selected_movie_title = self.uiref.movieLibraryInfoWidget.movieLibraryList.currentItem().data(QtCore.Qt.UserRole)["title"]
         editmenu = QtWidgets.QMenu()
-        editaction = QtWidgets.QAction()
-        editaction.setText("Edit Subtitles")
+        editaction = QtWidgets.QAction("Edit Subtitles")
         editaction.triggered.connect(self.editSubtitlesDialog)
         editmenu.addAction(editaction)
         editmenu.exec_(globalclickcoords)
@@ -79,6 +79,26 @@ class UIFunctions:
     def editSubtitlesDialog(self):
         selected_movie_title = self.uiref.movieLibraryInfoWidget.movieLibraryList.currentItem().data(QtCore.Qt.UserRole)["title"]
         print(f"CREATE DIALOG TO EDIT SUBS FOR {selected_movie_title}")
+        dialog = QtWidgets.QDialog(self.MainWindow)
+        ui = Ui_editsubs_dialog()
+        ui.setupUi(dialog)
+        #Setup the dialog with the movie title and any subtitles we currently have
+        subdata = ""
+        if self.subtitleLibrary.checkForSubs(selected_movie_title):
+            subdata = self.subtitleLibrary.getSubs(selected_movie_title)
+        ui.setupData(selected_movie_title, subdata)
+        returnstatus = dialog.exec_()
+        if returnstatus is True:
+            #Save the updated subtitles for that title. Have to delete the title first then add.
+            #Its dumb but im not fixing that right now.
+            #Build the dictionary with the needed data.
+            #TODO Need a shitton of data for this, filename, folder, etc. Im stopping here for the night.
+            self.subtitleLibrary.delSubs(selected_movie_title)
+
+            ui.subtitle_text.toPlainText()
+            self.subtitleLibrary.addSubs
+            pass
+        print()
 
     #A place for any dynamic modifications of the GUI.
     def guimods(self):

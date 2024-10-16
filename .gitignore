@@ -131,3 +131,6 @@ dmypy.json
 src/movielibrary.db
 movielibrary.db
 *.db
+old_dbs
+old_dbs/*
+*.lnk

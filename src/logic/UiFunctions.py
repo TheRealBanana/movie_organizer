@@ -12,6 +12,7 @@ from dialogs.options_dialog import Ui_OptionsDialog
 from dialogs.widgets.searchParameterWidget import SearchParameterWidget
 from dialogs.widgets.movielibraryinfowidget import movieLibraryInfoWidget, GOODSUBS_LISTITEM_BG_COLOR, NOSUBS_LISTITEM_BG_COLOR
 from dialogs.editSubsDialog import Ui_editsubs_dialog
+from dialogs.editMovieDataDialog import Ui_editMovieDataDialogBase
 
 
 def qstringFixer(value):
@@ -71,10 +72,24 @@ class UIFunctions:
     def libraryItemRightClickMenu(self, qpoint):
         globalclickcoords = self.uiref.movieLibraryInfoWidget.movieLibraryList.mapToGlobal(qpoint)
         editmenu = QtWidgets.QMenu()
-        editaction = QtWidgets.QAction("Edit Subtitles")
-        editaction.triggered.connect(self.editSubtitlesDialog)
-        editmenu.addAction(editaction)
+        editmovdataaction = QtWidgets.QAction("Edit Movie Data")
+        editmovdataaction.triggered.connect(self.editMovieDataDialog)
+        editsubsaction = QtWidgets.QAction("Edit Subtitles")
+        editsubsaction.triggered.connect(self.editSubtitlesDialog)
+        editmenu.addAction(editmovdataaction)
+        editmenu.addAction(editsubsaction)
         editmenu.exec_(globalclickcoords)
+
+    def editMovieDataDialog(self):
+        selected_movie_data = self.uiref.movieLibraryInfoWidget.movieLibraryList.currentItem().data(QtCore.Qt.UserRole)
+        selected_movie_title = selected_movie_data["title"]
+        dialog = QtWidgets.QDialog(self.MainWindow)
+        ui = Ui_editMovieDataDialogBase()
+        ui.setupUi(dialog)
+        ui.setupData(selected_movie_title, selected_movie_data)
+        returnstatus = bool(dialog.exec_())
+        if returnstatus: print("YAS")
+        else: print("NOOO")
 
     def editSubtitlesDialog(self):
         selected_movie_data = self.uiref.movieLibraryInfoWidget.movieLibraryList.currentItem().data(QtCore.Qt.UserRole)

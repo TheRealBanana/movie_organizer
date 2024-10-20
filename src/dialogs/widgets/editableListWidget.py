@@ -88,7 +88,13 @@ class editableListWidget(QtWidgets.QWidget):
                 self.addNormalItem(f, button=True)
         elif isinstance(self.fielddata[0], dict):
             for d in self.fielddata:
-                self.addSpecWidget(d["name"], d["character"], button=True)
+                try:
+                    self.addSpecWidget(d["name"], d["character"], button=True)
+                except Exception as e:
+                    #TODO This exception is caused by an actor field having an actor with no character, just the
+                    # actor's name. So instead of a dictionary with "name" and "character" we have a string with
+                    # the actor's name in it.
+                    pass
         else:
             print("WAT")
             print(type(self.fielddata[0]))
@@ -108,7 +114,7 @@ class editableListWidget(QtWidgets.QWidget):
 
     def addNormalItem(self, data, button=False):
         item = QtWidgets.QListWidgetItem(str(data))
-        item.setFlags(QtCore.Qt.ItemIsSelectable|QtCore.Qt.ItemIsEditable|QtCore.Qt.ItemIsDragEnabled|QtCore.Qt.ItemIsUserCheckable|QtCore.Qt.ItemIsEnabled)
+        item.setFlags(QtCore.Qt.ItemIsSelectable|QtCore.Qt.ItemIsEditable|QtCore.Qt.ItemIsEnabled)
         self.listWidget.addItem(item)
         if not button:
             self.listWidget.setCurrentItem(item)

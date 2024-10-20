@@ -32,6 +32,9 @@
       <property name="text">
        <string>New Item</string>
       </property>
+      <property name="flags">
+       <set>ItemIsSelectable|ItemIsEditable|ItemIsEnabled</set>
+      </property>
      </item>
     </widget>
    </item>

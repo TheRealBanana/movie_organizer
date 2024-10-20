@@ -1,4 +1,5 @@
 import re
+from copy import deepcopy
 from os import sep as ossep
 from datetime import datetime
 from PyQt5 import QtWidgets, QtCore, QtGui
@@ -76,16 +77,46 @@ class UIFunctions:
         editmovdataaction.triggered.connect(self.editMovieDataDialog)
         editsubsaction = QtWidgets.QAction("Edit Subtitles")
         editsubsaction.triggered.connect(self.editSubtitlesDialog)
+        deletemovieaction = QtWidgets.QAction("Delete Movie From Database")
+        deletemovieaction.triggered.connect(self.delMovFromDb)
         editmenu.addAction(editmovdataaction)
         editmenu.addAction(editsubsaction)
+        editmenu.addSeparator()
+        editmenu.addAction(deletemovieaction)
         editmenu.exec_(globalclickcoords)
 
+    def delMovFromDb(self):
+        current_item = self.uiref.movieLibraryInfoWidget.movieLibraryList.currentItem()
+        selected_movie_data = deepcopy(current_item.data(QtCore.Qt.UserRole))
+        selected_movie_title = selected_movie_data["title"]
+        # Be double sure the user knows what they're about to do. This is permanent!
+        popuptitle = "Permanently delete movie from database?"
+        popuptext = (f"Are you sure you want to permanently delete {selected_movie_title} from the movie database?"
+                     f"This will also permanently remove any saved subtitles from the database.\n\nThis cannot be undone.")
+        warningpopup = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Warning, popuptitle, popuptext, QtWidgets.QMessageBox.Cancel)
+        warningpopup.addButton("Delete", QtWidgets.QMessageBox.AcceptRole)
+        ret = warningpopup.exec_()
+        if ret == QtWidgets.QMessageBox.AcceptRole:
+            print(f"Deleting {selected_movie_title} from the movie database and any associated subtitles.")
+            #No need to check if the title exists here for either of these, they check on their own.
+            self.movieLibrary.delMovie(selected_movie_title)
+            self.subtitleLibrary.delSubs(selected_movie_title)
+            row = self.uiref.movieLibraryInfoWidget.movieLibraryList.row(current_item)
+            self.uiref.movieLibraryInfoWidget.movieLibraryList.takeItem(row)
+
+
     def editMovieDataDialog(self):
-        selected_movie_data = self.uiref.movieLibraryInfoWidget.movieLibraryList.currentItem().data(QtCore.Qt.UserRole)
+        # So I always thought the data returned from data(QtCore.Qt.UserRole) was just a copy of the actual data, but
+        # apparently its a reference to the actual data. I popped the title key from that dictionary it returned in
+        # the setupData() function and it caused an exception when I tried to edit the subtitles, because the subs
+        # edit code couldnt find the title key.
+        # So a deepcopy here avoids the reference issue completely.
+        selected_movie_data = deepcopy(self.uiref.movieLibraryInfoWidget.movieLibraryList.currentItem().data(QtCore.Qt.UserRole))
         selected_movie_title = selected_movie_data["title"]
         dialog = QtWidgets.QDialog(self.MainWindow)
         ui = Ui_editMovieDataDialogBase()
         ui.setupUi(dialog)
+
         ui.setupData(selected_movie_title, selected_movie_data)
         returnstatus = bool(dialog.exec_())
         if returnstatus: print("YAS")

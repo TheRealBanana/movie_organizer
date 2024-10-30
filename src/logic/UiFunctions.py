@@ -13,7 +13,7 @@ from dialogs.options_dialog import Ui_OptionsDialog
 from dialogs.widgets.searchParameterWidget import SearchParameterWidget
 from dialogs.widgets.movielibraryinfowidget import movieLibraryInfoWidget, GOODSUBS_LISTITEM_BG_COLOR, NOSUBS_LISTITEM_BG_COLOR
 from dialogs.editSubsDialog import Ui_editsubs_dialog
-from dialogs.editMovieDataDialog import Ui_editMovieDataDialogBase
+from dialogs.editMovieDataDialog import Ui_editMovieDataDialogBase, unacceptableDialog
 
 
 def qstringFixer(value):
@@ -113,7 +113,7 @@ class UIFunctions:
         # So a deepcopy here avoids the reference issue completely.
         selected_movie_data = deepcopy(self.uiref.movieLibraryInfoWidget.movieLibraryList.currentItem().data(QtCore.Qt.UserRole))
         selected_movie_title = selected_movie_data["title"]
-        dialog = QtWidgets.QDialog(self.MainWindow)
+        dialog = unacceptableDialog(self.MainWindow)
         ui = Ui_editMovieDataDialogBase()
         ui.setupUi(dialog)
 

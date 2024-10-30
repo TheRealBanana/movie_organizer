@@ -34,6 +34,8 @@ class editableListWidget(QtWidgets.QWidget):
         # For the dictionary entries, we'll have to use a custom QListWidgetItem thats two text entries separated by the word 'as'
         self.fielddata = fielddata
         self.fieldname = fieldname
+
+        # This is the start of the output from pyuic5. If updating this widget, paste the edited code from setupUi() to here.
         self.setObjectName("editableListWidget")
         self.resize(400, 220)
         self.setWindowTitle("")
@@ -55,17 +57,31 @@ class editableListWidget(QtWidgets.QWidget):
         self.addButton.setIcon(icon)
         self.addButton.setObjectName("addButton")
         self.verticalLayoutForButtons.addWidget(self.addButton)
+        self.addCharButton = QtWidgets.QPushButton(self)
+        self.addCharButton.setMaximumSize(QtCore.QSize(24, 24))
+        self.addCharButton.setText("")
+        self.addCharButton.hide() # This is only shown for actor lists
+        icon1 = QtGui.QIcon()
+        icon1.addPixmap(QtGui.QPixmap(".\\../icons/plus-icon-blue.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.addCharButton.setIcon(icon1)
+        self.addCharButton.setObjectName("addCharButton")
+        self.verticalLayoutForButtons.addWidget(self.addCharButton)
+        spacerItem = QtWidgets.QSpacerItem(20, 20, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Fixed)
+        self.verticalLayoutForButtons.addItem(spacerItem)
         self.removeButton = QtWidgets.QPushButton(self)
         self.removeButton.setMaximumSize(QtCore.QSize(24, 24))
         self.removeButton.setText("")
-        icon1 = QtGui.QIcon()
-        icon1.addPixmap(QtGui.QPixmap(".\\../icons/delete-icon.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
-        self.removeButton.setIcon(icon1)
+        icon2 = QtGui.QIcon()
+        icon2.addPixmap(QtGui.QPixmap(".\\../icons/delete-icon.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.removeButton.setIcon(icon2)
         self.removeButton.setObjectName("removeButton")
         self.verticalLayoutForButtons.addWidget(self.removeButton)
-        spacerItem = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
-        self.verticalLayoutForButtons.addItem(spacerItem)
+        spacerItem1 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
+        self.verticalLayoutForButtons.addItem(spacerItem1)
         self.horizontalLayout.addLayout(self.verticalLayoutForButtons)
+
+        # End of pyuic5 paste code section
+
         self.listWidget.setSortingEnabled(False)
 
         # Heres how to add a special widget
@@ -78,23 +94,27 @@ class editableListWidget(QtWidgets.QWidget):
         """
 
         self.addButton.clicked.connect(self.addButtonClicked)
+        self.addCharButton.clicked.connect(self.addCharButtonClicked)
         self.removeButton.clicked.connect(self.removeButtonClicked)
 
         self.setupData()
 
     def setupData(self):
+        # If our field name is actors we have to unhide the special button to add characters
+        if self.fieldname == "actors":
+            self.addCharButton.show()
+
         if isinstance(self.fielddata[0], str):
             for f in self.fielddata:
-                self.addNormalItem(f, button=True)
+                self.addNormalItem(f)
         elif isinstance(self.fielddata[0], dict):
             for d in self.fielddata:
-                try:
-                    self.addSpecWidget(d["name"], d["character"], button=True)
-                except Exception as e:
-                    #TODO This exception is caused by an actor field having an actor with no character, just the
-                    # actor's name. So instead of a dictionary with "name" and "character" we have a string with
-                    # the actor's name in it.
-                    pass
+                if isinstance(d, dict):
+                    self.addSpecWidget(d["name"], d["character"])
+                elif isinstance(d, str):
+                    self.addNormalItem(d)
+                else:
+                    raise(Exception(f"Unexpected type for field (got a {type(d)} for {self.fieldname})"))
         else:
             print("WAT")
             print(type(self.fielddata[0]))
@@ -107,7 +127,7 @@ class editableListWidget(QtWidgets.QWidget):
         self.listWidget.addItem(item)
         item.setSizeHint(specwidget.sizeHint())
         self.listWidget.setItemWidget(item, specwidget)
-        if not button:
+        if button:
             self.listWidget.setCurrentItem(item)
             specwidget.actorname_input.setFocus()
             specwidget.actorname_input.selectAll()
@@ -116,17 +136,15 @@ class editableListWidget(QtWidgets.QWidget):
         item = QtWidgets.QListWidgetItem(str(data))
         item.setFlags(QtCore.Qt.ItemIsSelectable|QtCore.Qt.ItemIsEditable|QtCore.Qt.ItemIsEnabled)
         self.listWidget.addItem(item)
-        if not button:
+        if button:
             self.listWidget.setCurrentItem(item)
             self.listWidget.editItem(item)
 
     def addButtonClicked(self):
-        # We need some way to differentiate between normal lists and actor lists
-        # If we're a normal list we add a normal listwidgetitem, if we're actors we add the special item.
-        if self.fieldname == "actors":
-            self.addSpecWidget("Actor Name", "Character Name")
-        else:
-            self.addNormalItem("")
+        self.addNormalItem("", button=True)
+
+    def addCharButtonClicked(self):
+        self.addSpecWidget("Actor Name", "Character Name", button=True)
 
     def removeButtonClicked(self):
         self.listWidget.takeItem(self.listWidget.currentRow())

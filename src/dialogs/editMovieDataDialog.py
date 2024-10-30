@@ -11,6 +11,16 @@ DO_NOT_ALLOW_EDITING = ["runtime",
                         "imdb_id",
                         "imdb_rating"]
 
+class unacceptableDialog(QtWidgets.QDialog):
+    def __init__(self, parent=None):
+        super(unacceptableDialog, self).__init__(parent)
+    # Stops the enter key from triggering the dialog's accept() slot. Kind of annoying.
+    def keyPressEvent(self, event):
+        if event.key() in [QtCore.Qt.Key_Return, QtCore.Qt.Key_Enter]:
+            event.ignore()
+        else:
+            super().keyPressEvent(event)
+
 class Ui_editMovieDataDialogBase(object):
     def __init__(self):
         self.movietitle = None

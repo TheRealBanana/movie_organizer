@@ -106,6 +106,10 @@ class starRatingWidget(QtWidgets.QWidget):
         self.ratingStar_5.starClicked.connect(self.starClickedUpdate)
 
     def starClickedUpdate(self, staridx, emit=True):
+        try:
+            staridx = int(staridx)
+        except:
+            raise(Exception(f"Got a weird result for staridx: {type(staridx)}"))
         #Clicking the current star rating allows you to unrate a movie
         if self.currentRating == staridx and emit:
             staridx = 0

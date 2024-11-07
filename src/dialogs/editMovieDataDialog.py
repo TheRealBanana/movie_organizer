@@ -2,7 +2,8 @@
 
 
 from PyQt5 import QtCore, QtGui, QtWidgets
-from .widgets.editableListWidget import editableListWidget
+from collections import OrderedDict
+from .widgets.editableListWidget import editableListWidget, specialCharacterListItem
 
 DO_NOT_ALLOW_EDITING = ["runtime",
                         "cover_url",
@@ -60,12 +61,50 @@ class Ui_editMovieDataDialogBase(object):
                 # Some of these fields we don't want to allow editing, so if the key is in our disallow list we set readonly
                 if key in DO_NOT_ALLOW_EDITING:
                     datawidget.setReadOnly(True)
-                    datawidget.setStyleSheet("QLineEdit:read-only { background-color: lightgrey; }");
+                    datawidget.setStyleSheet("QLineEdit:read-only { background-color: lightgrey; }")
             else:
                 raise(Exception(f"Got unexpected field type: {type(value)}"))
             datawidget.setObjectName(f"datawidget--{key}")
             horizontalLayout.addWidget(datawidget)
             self.verticalLayout_2.addWidget(groupbox)
+
+    def getData(self):
+        #Loop through all our widgets and pull the data out of them.
+        allwidgets = self.scrollAreaWidgetContents.findChildren(QtWidgets.QWidget, options=QtCore.Qt.FindChildrenRecursively)
+        datawidgets = {}
+        for w in allwidgets:
+            objname = w.objectName()
+            if "datawidget--" in objname:
+                keyname = objname[12:]
+                datawidgets[keyname] = w
+        #Now we have a list of all the datawidgets we need to pull data from and their key names
+        returndata = OrderedDict()
+        returndata["title"] = self.movietitle
+        for keyname, widget in datawidgets.items():
+            if isinstance(widget, QtWidgets.QLineEdit):
+                returndata[keyname] = widget.text()
+            elif isinstance(widget, editableListWidget):
+                datalist = []
+                listsize = widget.listWidget.count()
+                for i in range(listsize):
+                    listitem = widget.listWidget.item(i)
+                    # We get the widget for each item to see if its our special item or a normal item
+                    subwidget = widget.listWidget.itemWidget(listitem)
+                    if isinstance(subwidget, specialCharacterListItem):
+                        #Special character widget needs to be a dict with two keys, character and name.
+                        chardata = {
+                            "character": subwidget.findChild(QtWidgets.QLineEdit, name="charactername_input").text(),
+                            "name": subwidget.findChild(QtWidgets.QLineEdit, name="actorname_input").text()
+                        }
+                        datalist.append(chardata)
+                    else: #Is probably NoneType but we dont really care
+                        datalist.append(listitem.text())
+                returndata[keyname] = datalist
+            else:
+                raise(Exception(f"Got a weird type unpacking data from widgets for key: '{keyname}'. Type was: {type(widget)}"))
+        #Before returning we have to tack on some unneeded (but maybe needed in the future) tags
+        returndata["coverurl"] = ""
+        return returndata
 
     def setupUi(self, editMovieDataDialogBase):
         editMovieDataDialogBase.setObjectName("editMovieDataDialogBase")

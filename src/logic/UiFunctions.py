@@ -91,7 +91,7 @@ class UIFunctions:
         selected_movie_title = selected_movie_data["title"]
         # Be double sure the user knows what they're about to do. This is permanent!
         popuptitle = "Permanently delete movie from database?"
-        popuptext = (f"Are you sure you want to permanently delete {selected_movie_title} from the movie database?"
+        popuptext = (f"Are you sure you want to permanently delete '{selected_movie_title}' from the movie database?\n"
                      f"This will also permanently remove any saved subtitles from the database.\n\nThis cannot be undone.")
         warningpopup = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Warning, popuptitle, popuptext, QtWidgets.QMessageBox.Cancel)
         warningpopup.addButton("Delete", QtWidgets.QMessageBox.AcceptRole)
@@ -111,7 +111,8 @@ class UIFunctions:
         # the setupData() function and it caused an exception when I tried to edit the subtitles, because the subs
         # edit code couldnt find the title key.
         # So a deepcopy here avoids the reference issue completely.
-        selected_movie_data = deepcopy(self.uiref.movieLibraryInfoWidget.movieLibraryList.currentItem().data(QtCore.Qt.UserRole))
+        current_item = self.uiref.movieLibraryInfoWidget.movieLibraryList.currentItem()
+        selected_movie_data = deepcopy(current_item.data(QtCore.Qt.UserRole))
         selected_movie_title = selected_movie_data["title"]
         dialog = unacceptableDialog(self.MainWindow)
         ui = Ui_editMovieDataDialogBase()
@@ -119,8 +120,16 @@ class UIFunctions:
 
         ui.setupData(selected_movie_title, selected_movie_data)
         returnstatus = bool(dialog.exec_())
-        if returnstatus: print("YAS")
-        else: print("NOOO")
+        if returnstatus:
+            returndata = ui.getData()
+            # Two things we need to do, we gotta update the main library display, and we need to update the database
+            # Library display is easy. No need to deepcopy here, Qt makes a copy on using setData()
+            current_item.setData(QtCore.Qt.UserRole, returndata)
+            #Also update the right hand display pane to reflect any changes
+            self.updateLibraryDisplay(current_item, None, self.uiref.movieLibraryInfoWidget.movieInfoDisplay)
+            # Theres no updateData function for the database, there just a delete and add.
+            self.movieLibrary.delMovie(selected_movie_title)
+            self.movieLibrary.addMovie(returndata) # Not passing title because its pulled from the data, does look weird tho.
 
     def editSubtitlesDialog(self):
         selected_movie_data = self.uiref.movieLibraryInfoWidget.movieLibraryList.currentItem().data(QtCore.Qt.UserRole)

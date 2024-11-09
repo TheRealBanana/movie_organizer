@@ -142,7 +142,8 @@ class movieLibraryInfoWidget(QtWidgets.QWidget):
                 return mktime(strptime(s["lastplay"], '%d/%b/%Y-%I:%M:%S %p'))
         elif sortkey == "runtime":
             sortfunc = lambda r: int(r[sortkey])
-
+        elif sortkey == "year":
+            sortfunc = lambda r: str(r["cleanyear" if "cleanyear" in r else "year"])
         else:
             sortfunc = lambda r: str(r[sortkey])
 
@@ -174,7 +175,7 @@ class movieLibraryInfoWidget(QtWidgets.QWidget):
             newitem.setToolTip(str(item["filename"]))
             #Check if we have subtitles for this title, if so add an indicator like changing the background
             if not self.sublibref.checkForSubs(item["cleantitle"]):
-                bgcolor = QtGui.QColor(*NOSUBS_LISTITEM_BG_COLOR) 
+                bgcolor = QtGui.QColor(*NOSUBS_LISTITEM_BG_COLOR)
                 newitem.setBackground(QtGui.QBrush(bgcolor))
             self.movieLibraryList.addItem(newitem)
 

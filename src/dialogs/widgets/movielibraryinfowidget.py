@@ -100,6 +100,12 @@ class movieLibraryInfoWidget(QtWidgets.QWidget):
     def setSubRef(self, subref):
         self.sublibref = subref
 
+    #TODO This turned out to be not a good idea. On older PCs this takes for ever to sort, like 300-400ms each time.
+    # I think the correct solution here is to annotate that data in the movie database. Just use the extra field or something.
+    # And we'll just have it be True or False and we can check that parameter.
+    # Or we can do this check once when the library view is initially populated, but the search window wont be fixed.
+    # Best to update the database with this new info, change the way subtitles are extracted and saved to add this
+    # true flag to the database when it successfully adds the subtitles.
     def sortOptionsUpdate(self, _):
         #Clear any selection and temporarily disable the currentItemChanged signal
         #These two are slowing things down when rebuilding the list
@@ -168,7 +174,7 @@ class movieLibraryInfoWidget(QtWidgets.QWidget):
             newitem.setToolTip(str(item["filename"]))
             #Check if we have subtitles for this title, if so add an indicator like changing the background
             if not self.sublibref.checkForSubs(item["cleantitle"]):
-                bgcolor = QtGui.QColor(*NOSUBS_LISTITEM_BG_COLOR) # Kind of a light green background
+                bgcolor = QtGui.QColor(*NOSUBS_LISTITEM_BG_COLOR) 
                 newitem.setBackground(QtGui.QBrush(bgcolor))
             self.movieLibraryList.addItem(newitem)
 

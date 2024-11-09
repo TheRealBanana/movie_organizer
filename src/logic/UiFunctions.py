@@ -238,6 +238,7 @@ class UIFunctions:
         movieinfowidget.movieSelectionChanged.connect(self.updateLibraryDisplay)
         movieinfowidget.libraryStarRating.starRatingChanged['int'].connect(self.starRatingChanged)
         movieinfowidget.updatePlayCount["QString"].connect(self.updatePlayCount)
+        movieinfowidget.setSubRef(self.subtitleLibrary)
         #Create search results tab
         self.uiref.searchTabWidget.addTab(movieinfowidget, "~ SEARCH RESULTS (0) ~")
         tabindex = self.uiref.searchTabWidget.indexOf(movieinfowidget)

@@ -12,6 +12,9 @@ START_HIGHLIGHT = '<span style="background-color: #FFFF00">'
 END_HIGHLIGHT = "</span>"
 HIGHLIGHT_SUB_REGEX = START_HIGHLIGHT + r"\1" + END_HIGHLIGHT
 
+#What fields are we going to search when the user selects "People Fields" for the search field.
+PEOPLE_FIELDS = ["directors", "writers", "producers", "actors", "composers"]
+
 class movieSearchJob(QObject):
     searchProgressUpdate = pyqtSignal(int) # General progress - how many have been processed/how many total
     newSearchResult = pyqtSignal(QVariant)
@@ -115,7 +118,7 @@ class movieSearchJob(QObject):
             if k in self.matcheddlg:
                 rdata["dialogmatch"] = self.matcheddlg[k]
 
-            return rdata
+        return rdata
 
     def findAllQuotes(self, r):
         #z = get_best_match(self.dlgsearch, r["subtitles"]["corpus"])

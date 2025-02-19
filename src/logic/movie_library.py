@@ -4,6 +4,8 @@ import re
 from collections import OrderedDict as OD
 from ast import literal_eval
 
+from src.logic.search import PEOPLE_FIELDS
+
 DATABASE_PATH = "./movielibrary.db"
 
 
@@ -215,10 +217,22 @@ class MovieLibrary:
         hlsections = {}
         #Get a list of search parameters
         sep = " AND "
+        AP_SEP = None
         params = ["SELECT * FROM movie_data WHERE "]
+        #Check for the "All People" field, and replace it with the necessary subfields if we find it.
+        #This will overwrite any fields in the process (so if you search for both "All People" and "writers",
+        #say, it will overwrite the writers field with whatever was in the "All People" field.
+        if "All People" in querydata:
+            AP_SEP = " OR " #Signify we have an All People field
+            val = querydata["All People"]
+            del(querydata["All People"])
+            merge_dict = {field: val for field in PEOPLE_FIELDS}
+            querydata.update(merge_dict)
+
         for field, value in querydata.items():
             if len(value) == 0:
                 continue
+
             if field not in hlsections:
                 hlsections[field] = []
             #Eventually I think I will make it possible to handle multiple query fields of the same field type
@@ -254,12 +268,16 @@ class MovieLibrary:
                             cleanval = cleanvalreg.group(1)
                             querystr = "(%s == %s) or (%s == %s)" % (field, cleanval, field, float(cleanval))
                         hlsections[field] = [cleanval]
-                else:
+                else: # All non-integer fields.
                     querystr = "%s LIKE '%%%s%%'" % (field, value if value is not None else "9999") #Safe fail if the regex isnt set
                     #Save this for highlighting later
                     hlsections[field].append(value)
             if len(params) > 1:
-                querystr = sep + querystr
+                if AP_SEP is not None:
+                    if field in PEOPLE_FIELDS:
+                        querystr = AP_SEP + querystr
+                else:
+                    querystr = sep + querystr
             params.append(querystr)
         results = self._SEARCH("".join(params))
         results["hlsections"] = hlsections

@@ -336,6 +336,7 @@ class UIFunctions:
         #TODO The fieldlist shouldnt ever update dynamically but if we ever decide to this will probably break
         self.fieldlist = OrderedDict.fromkeys(self.movieLibrary.fieldlist, True)
         self.fieldlist["dialog"] = True # Also need to match dialog which isnt a key in our movie library database
+        self.fieldlist["All People"] = True # Adding a way to search through every field except title, genre, runtime, etc. Just people fields.
         #Update library tab title to include library size
         self.uiref.mainTabWidget.setTabText(self.uiref.mainTabWidget.indexOf(self.uiref.movieLibraryTab), "Movie Library (%d)" % len(keys))
 

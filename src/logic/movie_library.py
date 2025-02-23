@@ -4,7 +4,7 @@ import re
 from collections import OrderedDict as OD
 from ast import literal_eval
 
-from src.logic.search import PEOPLE_FIELDS
+from logic.search import PEOPLE_FIELDS
 
 DATABASE_PATH = "./movielibrary.db"
 

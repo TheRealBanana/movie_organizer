@@ -9,6 +9,7 @@ from .library_scanner import LibraryScanner
 from .subtitles import SubtitleDownloader, SubtitleLibrary
 from .search import SearchManager
 from .options_dialog_functions import OptionsDialogFunctions
+from .addMovieLogic import AddMovieDialogFunctions
 from dialogs.options_dialog import Ui_OptionsDialog
 from dialogs.widgets.searchParameterWidget import SearchParameterWidget
 from dialogs.widgets.movielibraryinfowidget import movieLibraryInfoWidget, GOODSUBS_LISTITEM_BG_COLOR, NOSUBS_LISTITEM_BG_COLOR
@@ -83,6 +84,12 @@ class UIFunctions:
         editmenu.addAction(editsubsaction)
         editmenu.addSeparator()
         editmenu.addAction(deletemovieaction)
+        editmenu.addSeparator()
+        #Its risky referencing an object variable thats set somewhere other than init(), but we can be sure that the
+        #guimods() function is always called right after the UIFunctions()'s init() function finishes. And since this
+        #function is only called on right click, theres never a scenario where we can right click before guimods() runs.
+        #So don't worry about it! Also it should still be connected properly.
+        editmenu.addAction(self.addmovieaction)
         editmenu.exec_(globalclickcoords)
 
     def delMovFromDb(self):
@@ -103,6 +110,18 @@ class UIFunctions:
             self.subtitleLibrary.delSubs(selected_movie_title)
             row = self.uiref.movieLibraryInfoWidget.movieLibraryList.row(current_item)
             self.uiref.movieLibraryInfoWidget.movieLibraryList.takeItem(row)
+
+
+    def addMovieDialog(self):
+        #Was going to be same as editMovieDataDialot but nah that sounds like a bad plan. Entering every single person
+        #one by one sounds like a terrible plan. The best way to handle this, imo, is to require 2 things: Movie file
+        #full path and the IMDB ID. Then we just use whatever data that IMDB ID has, and assign it to that file path.
+        #Easy peasy no need to manually enter every piece of data by hand.
+        #
+        # It would be nice though to open up the new movie data in an editMovieDataDialog() at the end to see and edit the data.
+        # Maybe in the future.
+        addmov = AddMovieDialogFunctions()
+        addmov.showAddMovieDialog()
 
 
     def editMovieDataDialog(self):
@@ -169,6 +188,12 @@ class UIFunctions:
         self.MainWindow.setWindowTitle("Movie Organizer")
         #Give the movie library info widget the ability to check for subtitles
         self.uiref.movieLibraryInfoWidget.setSubRef(self.subtitleLibrary)
+        #Add another main menu option
+        #If you don't make the action part of the object they go out of reference at the end of guimods() and the menu
+        #option never gets added (or rather it gets added and is then immediately deleted).
+        self.addmovieaction = QtWidgets.QAction("Manually Add Movie to Database")
+        self.addmovieaction.triggered.connect(self.addMovieDialog)
+        self.uiref.menuFile.addAction(self.addmovieaction)
 
     def updatePlayCount(self, movietitle):
         #Update the database and then update the display search results and main library view

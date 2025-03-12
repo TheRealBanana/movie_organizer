@@ -63,7 +63,7 @@ class Ui_editMovieDataDialogBase(object):
                     datawidget.setReadOnly(True)
                     datawidget.setStyleSheet("QLineEdit:read-only { background-color: lightgrey; }")
             else:
-                raise(Exception(f"Got unexpected field type: {type(value)}"))
+                raise(Exception(f"Got unexpected field type: {type(value)} for key named {key}"))
             datawidget.setObjectName(f"datawidget--{key}")
             horizontalLayout.addWidget(datawidget)
             self.verticalLayout_2.addWidget(groupbox)

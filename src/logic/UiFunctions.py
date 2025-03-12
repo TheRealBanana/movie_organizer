@@ -120,7 +120,7 @@ class UIFunctions:
         #
         # It would be nice though to open up the new movie data in an editMovieDataDialog() at the end to see and edit the data.
         # Maybe in the future.
-        addmov = AddMovieDialogFunctions()
+        addmov = AddMovieDialogFunctions(self.movieLibrary)
         addmov.showAddMovieDialog()
 
 

@@ -55,8 +55,8 @@ class UIFunctions:
         self.settings = self.loadSettings()
         #self.fieldlist = OrderedDict.fromkeys(self.movieLibrary.getFieldList(), True)
         self.fieldlist = None
-        self.loadLibraryIntoGui()
         self.guimods()
+        self.loadLibraryIntoGui()
 
     def setupConnections(self):
         self.uiref.actionScan_Media_Collection.triggered.connect(self.startLibraryScan)
@@ -123,7 +123,14 @@ class UIFunctions:
         addmov = AddMovieDialogFunctions(self.movieLibrary)
         addmov.showAddMovieDialog()
 
-
+    #TODO
+    # Ok, so I kinda forgot that I'm saving the file path in both the movie library database and the subtitle database.
+    # Well when I update the file path through the GUI (using the edit movie dialog) and change the file path, it only
+    # changes that movie library database. So when you search for dialog and click the play link, it uses the data
+    # thats stored in the subtitles database, which has the outdated file path. So we need to update the file path
+    # in the subtitle database too, which is slightly more complicated. In the movie database we can easily delete
+    # whatever data is there and resave it. With the subtitles we'd have to pull all the data we have in the db
+    # for that title, change the file path/name, and then recommit the same data. Not too bad really.
     def editMovieDataDialog(self):
         # So I always thought the data returned from data(QtCore.Qt.UserRole) was just a copy of the actual data, but
         # apparently its a reference to the actual data. I popped the title key from that dictionary it returned in
@@ -149,6 +156,7 @@ class UIFunctions:
             # Theres no updateData function for the database, there just a delete and add.
             self.movieLibrary.delMovie(selected_movie_title)
             self.movieLibrary.addMovie(returndata) # Not passing title because its pulled from the data, does look weird tho.
+
 
     def editSubtitlesDialog(self):
         selected_movie_data = self.uiref.movieLibraryInfoWidget.movieLibraryList.currentItem().data(QtCore.Qt.UserRole)
@@ -364,6 +372,12 @@ class UIFunctions:
         self.fieldlist["All People"] = True # Adding a way to search through every field except title, genre, runtime, etc. Just people fields.
         #Update library tab title to include library size
         self.uiref.mainTabWidget.setTabText(self.uiref.mainTabWidget.indexOf(self.uiref.movieLibraryTab), "Movie Library (%d)" % len(keys))
+        #Sort the library list. By default the sorting is based on the QListWidgetItem's text() value, but its case sensitive.
+        #To make it not case sensitive requires a custom subclass and __lt__() method. Since we do our own sorting anyway when the user
+        #changes the sort key, we just make use of that and make the case sensitive change there. It works, but the only problem
+        #is that it only works after you manually select some other sort key and then go back to title. So we'll just resort
+        #here right away with the title key and not worry about it.
+        self.uiref.movieLibraryInfoWidget.sortOptionsUpdate(None)
 
     def createNameLinks(self, data):
         #directors, writers, producers, composers, and genres are all simple lists, actors is a list of dictionaries.

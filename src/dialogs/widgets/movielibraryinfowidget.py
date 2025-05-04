@@ -145,7 +145,7 @@ class movieLibraryInfoWidget(QtWidgets.QWidget):
         elif sortkey == "year":
             sortfunc = lambda r: str(r["cleanyear" if "cleanyear" in r else "year"])
         else:
-            sortfunc = lambda r: str(r[sortkey])
+            sortfunc = lambda r: str(r[sortkey]).lower()
 
         oldlist.sort(key=sortfunc, reverse=order)
         #If we are sorting by something other than the title, put that info after the title.

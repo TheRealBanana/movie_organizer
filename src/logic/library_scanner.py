@@ -12,10 +12,10 @@ from difflib import SequenceMatcher
 # Using a rather low match ratio just to weed out the completely wrong results but try to keep partial title matches (might catch on sequels tho)
 MASTER_RATIO = 0.85
 
-S3DATASET_LOCATION = r"E:\s3_dataset_sqlite_out\imdbdataset_Oct.19.2023.sqlite"
+S3DATASET_LOCATION = r"H:\imdb_data\dbout\imdbdataset_Oct.19.2023.sqlite"
 
 
-IGNORE_FOLDERS = ["ZZZZZZZZZZZZZZZZ"]
+IGNORE_FOLDERS = ["Adobe", "SG-1", "Avenue"]
 
 VIDEO_EXTENSIONS=["avi", "divx", "amv", "mpg", "mpeg", "mpe", "m1v", "m2v",
                   "mpv2", "mp2v", "m2p", "vob", "evo", "mod", "ts", "m2ts",
@@ -24,7 +24,7 @@ VIDEO_EXTENSIONS=["avi", "divx", "amv", "mpg", "mpeg", "mpe", "m1v", "m2v",
                   "mkv", "webm", "ogm", "ogv", "flv", "f4v", "wmv", "rmvb",
                   "rm", "dv"]
 
-REMOVE_KEYWORDS = ["proper", "repack", "unrated", "part 1", "part 2", "2in1"]
+REMOVE_KEYWORDS = ["proper", "repack", "unrated", "part 1", "part 2", "2in1", "Unrated.and.Uncut"]
 
 movie_title_regex =        re.compile(r"^(.*?)[\s\.]?((?:19|20)[0-9]{2}).*?(720|1080|2160)", re.IGNORECASE)
 movie_title_regex_noyear = re.compile(r"^(.*)[\s\.]?((?:19|20)[0-9]{2})?.*?(720|1080|2160)", re.IGNORECASE)
@@ -224,18 +224,23 @@ class imdbInfoGrabber(QObject):
                     #Some titles in the IMDb have unicode characters that aren't
                     #suitable for file names so we need to convert those to ascii
                     #Trying both titles in case the folder name is more accurate
-                    #TODO Aug2024 Is this a bug below? movietitle2 is the folder name and I thought we were testing to see if one or the other was better
-                    #Well if one is more accurate maybe the other one isn't accurate enough and it gets passed on. Seems like this should be an 'or' instead of an 'and'.
-                    #If one or the other is good enough it gets through, instead of requiring both the folder name and file name to be a good enough match.
-                    if SequenceMatcher(None, movietitle.lower(), unicodedata.normalize('NFKD', movie_data["title"].lower())).ratio() < MASTER_RATIO or \
-                       SequenceMatcher(None, movietitle2.lower(), unicodedata.normalize('NFKD', movie_data["title"].lower())).ratio() < MASTER_RATIO:
+
+                    #The sequence matcher code below is one of the if checks along with the other stuff. Its checking if the SequenceMatcher
+                    #ratio is below the master ratio, and if so skips. It really shouldnt care about title2, so for now we're going to comment
+                    #that out.
+                    if SequenceMatcher(None, movietitle.lower(), unicodedata.normalize('NFKD', movie_data["title"].lower())).ratio() < MASTER_RATIO:# or \
+                       #SequenceMatcher(None, movietitle2.lower(), unicodedata.normalize('NFKD', movie_data["title"].lower())).ratio() < MASTER_RATIO:
                         #print("SMatcher SKIP %s   %s  -  %s" % (SequenceMatcher(None, movietitle.lower(), movie_data["title"].lower()).ratio(), movietitle.lower(), movie_data["title"].lower()))
+                        print("SMSkip")
                         continue
                     if "director" not in movie_data:
-                        continue
+                        print("Dskip")
+                        #continue
                     if "writer" not in movie_data:
+                        print("Wskip")
                         continue
                     if "cast" not in movie_data:
+                        print("Cskip")
                         continue
                     #Discard anything less than an hour long.
                     try:
@@ -251,12 +256,16 @@ class imdbInfoGrabber(QObject):
                     #apparently thats not getting in the way of its actual function. Should find a way to hide the errors maybe.
                     movie_data = ib.get_movie(result.movieID).data
                     if "director" not in movie_data:
-                        continue
+                        print("Dskip2")
+                        #continue
                     if "writer" not in movie_data:
+                        print("Wskip2")
                         continue
                     if "cast" not in movie_data:
+                        print("Cskip2")
                         continue
                     if "year" not in movie_data:
+                        print("Yskip")
                         continue
                     #Build up our dictionary to emit
                     #IMDB is so annoying with their inconsistent key names.
@@ -302,6 +311,7 @@ class imdbInfoGrabber(QObject):
                     if len(dbdata["composers"]) == 0: dbdata["composers"] = "NO_COMPOSER_FOUND"
 
                     if "genres" not in movie_data:
+                        print("Gskip")
                         continue
                     dbdata["genres"] = str(movie_data["genres"])
                     dbdata["runtime"] = movie_data["runtimes"][0]
@@ -352,22 +362,20 @@ class Crawler(QObject):
             return None
         allfiles = os.listdir(directory)
         dirs = []
-        for d in allfiles:
+        for af in allfiles:
             if self.stopping is True:
                 return None
-            if os.path.isdir(os.path.join(directory, d)) is True and not re.search("s[0-9]{2}", d, re.IGNORECASE): #ignore tv shows
-                self.progressUpdate.emit("Found directory: %s" % d)
-                dirs.append(d)
+            if os.path.isdir(os.path.join(directory, af)) is True and not re.search("s[0-9]{2}", af, re.IGNORECASE): #ignore tv shows
+                self.progressUpdate.emit("Found directory: %s" % af)
+                dirs.append(af)
         #Remove excluded dirs
-        for d in dirs:
+        for d in dirs[:]: #Create shallow copy so we can loop and modify the list at the same time
             if self.stopping is True: return None
             for x in IGNORE_FOLDERS:
                 if self.stopping is True: return None
-
                 if re.search(x, d, re.IGNORECASE):
                     dirs.remove(d)
                     self.progressUpdate.emit("Excluded directory: %s" % d)
-                    print("REMOVED: %s" % d)
 
         # Now that we're down to the bottom of the dir chain, we work our way back through the files
         files = []

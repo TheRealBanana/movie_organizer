@@ -7,8 +7,8 @@ from .widgets.editableListWidget import editableListWidget, specialCharacterList
 
 DO_NOT_ALLOW_EDITING = ["runtime",
                         "cover_url",
-                        "playcount",
-                        "lastplay",
+                        #"playcount",
+                        #"lastplay",
                         "imdb_id",
                         "imdb_rating"]
 

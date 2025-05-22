@@ -23,8 +23,9 @@ class AddMovieDialogFunctions(QObject):
         returnstatus = bool(self.dialog.exec_())
         print(type((returnstatus)))
         print(returnstatus)
-        print("DIALOGSETUP")
-        self.wrapMovieData()
+        if returnstatus is True:
+            print("DIALOGSETUP")
+            self.wrapMovieData()
 
     def setupDialog(self):
         self.ui.setupUi(self.dialog)
@@ -33,15 +34,23 @@ class AddMovieDialogFunctions(QObject):
         self.ui.browseButton.clicked.connect(self.showFileBrowseDialog)
         self.ui.checkIdButton.clicked.connect(self.checkIMDBid)
 
+
+    #Bleh, I dont like this method. Lots of code reuse, that weird return in weird places. The fact that every time we
+    #set the idCheckGood we also have to run checkIfEnabledSave() and theres like 4 spots that happens is annoying.
+    #Need to rewrite this without so much if/else and code reuse. Is critical to do however, since you don't want the
+    #ui to become out of sync and allow a manual addition to continue when the ID or file path is incorrect.
     def checkIMDBid(self):
         print(sys.version)
         rawid = str(self.ui.imdbidLineEdit.text())
         if rawid.isdigit() is True:
             imdbid = int(rawid)
+            self.idCheckGood = True
+            self.checkIfEnableSave()
             print("GUT")
         else:
             print("BAD")
             self.idCheckGood = False
+            self.checkIfEnableSave()
             return
         #Was going to reuse my imdb code but its so specific to the threaded scanner, it would be a mess.
         ia = imdb.IMDb("s3", "sqlite:///%s" % S3DATASET_LOCATION)

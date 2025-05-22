@@ -8,21 +8,20 @@ from collections import OrderedDict as OD
 import imdb, sys, os.path
 
 class AddMovieDialogFunctions(QObject):
-    def __init__(self, movie_library_ref, parent=None):
+    def __init__(self, movie_library_ref, update_library_view_callback, parent=None):
         super(AddMovieDialogFunctions, self).__init__(parent)
         self.dialog = QDialog(parent)
         self.ui = Ui_addMovieDialog()
         self.idCheckGood = False
         self.movie_data = None
         self.movie_library_ref = movie_library_ref
+        self.update_library_view_callback = update_library_view_callback
 
     def showAddMovieDialog(self):
         self.setupDialog()
         self.setupConnections()
 
         returnstatus = bool(self.dialog.exec_())
-        print(type((returnstatus)))
-        print(returnstatus)
         if returnstatus is True:
             print("DIALOGSETUP")
             self.wrapMovieData()
@@ -69,6 +68,14 @@ class AddMovieDialogFunctions(QObject):
 
     # The data we get from the IMDB database is not suitable for our application and has to be modified a little bit
     def wrapMovieData(self):
+        #Since we're sure this is the correct IMDB id, we'll now do an online check.
+        #Only doing it after the offline check since thats how the other bits of code do it, but im not convinced.
+        #I think we could probably just run an online only check, but eh whatever. It feels better this way, you don't
+        #get the app freezing when you click the "check" button. You just get a slight delay between clicking 'save'
+        #and the edit movie dialog appearing (which is where the online check is performed). Doing just the online
+        #check would be very annoying, having the whole UI freeze for 5-10 seconds while it downloaded the data.
+        ib = imdb.IMDb() # Online check
+        self.movie_data = ib.get_movie(self.movie_data.movieID)
         filepath = self.ui.filePathLineEdit.text()
         fpath = os.path.dirname(filepath)   # Get directory path
         fname = os.path.basename(filepath)  # Get file name
@@ -110,7 +117,7 @@ class AddMovieDialogFunctions(QObject):
             dbdata["composers"] += get_person_names(movie_data["composer"])
         if len(dbdata["composers"]) == 0: dbdata["composers"] = "NO_COMPOSER_FOUND"
 
-        dbdata["genres"] = str(movie_data["genres"])
+        dbdata["genres"] = movie_data["genres"]
         dbdata["runtime"] = movie_data["runtimes"][0]
         #cover url isnt in the text data files so we wont be using this for now
         #will be easy to get it manually later when we need it
@@ -138,18 +145,14 @@ class AddMovieDialogFunctions(QObject):
 
         ui.setupData(selected_movie_title, movie_data)
         returnstatus = bool(dialog.exec_())
-        """
         if returnstatus:
             returndata = ui.getData()
-            # Two things we need to do, we gotta update the main library display, and we need to update the database
-            # Library display is easy. No need to deepcopy here, Qt makes a copy on using setData()
-            current_item.setData(QtCore.Qt.UserRole, returndata)
-            #Also update the right hand display pane to reflect any changes
-            self.updateLibraryDisplay(current_item, None, self.uiref.movieLibraryInfoWidget.movieInfoDisplay)
-            # Theres no updateData function for the database, there just a delete and add.
-            self.movieLibrary.delMovie(selected_movie_title)
-            self.movieLibrary.addMovie(returndata) # Not passing title because its pulled from the data, does look weird tho.
-        """
+            # Two things we need to do, we need to add the new data to the database and then request a refresh of the
+            # library display to add the new movie data to the GUI.
+            self.movie_library_ref.addMovie(returndata) # Not passing title because its pulled from the data, does look weird tho.
+            self.update_library_view_callback()
+
+
 
 
 

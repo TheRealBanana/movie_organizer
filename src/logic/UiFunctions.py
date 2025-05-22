@@ -113,14 +113,7 @@ class UIFunctions:
 
 
     def addMovieDialog(self):
-        #Was going to be same as editMovieDataDialot but nah that sounds like a bad plan. Entering every single person
-        #one by one sounds like a terrible plan. The best way to handle this, imo, is to require 2 things: Movie file
-        #full path and the IMDB ID. Then we just use whatever data that IMDB ID has, and assign it to that file path.
-        #Easy peasy no need to manually enter every piece of data by hand.
-        #
-        # It would be nice though to open up the new movie data in an editMovieDataDialog() at the end to see and edit the data.
-        # Maybe in the future.
-        addmov = AddMovieDialogFunctions(self.movieLibrary)
+        addmov = AddMovieDialogFunctions(self.movieLibrary, self.loadLibraryIntoGui)
         addmov.showAddMovieDialog()
 
     #TODO

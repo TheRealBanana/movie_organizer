@@ -12,7 +12,7 @@ from difflib import SequenceMatcher
 # Using a rather low match ratio just to weed out the completely wrong results but try to keep partial title matches (might catch on sequels tho)
 MASTER_RATIO = 0.85
 
-S3DATASET_LOCATION = r"H:\imdb_data\dbout\imdbdataset_Oct.19.2023.sqlite"
+S3DATASET_LOCATION = r"C:\imdb_data\s3_dataset_sqlite_out\imdbdataset_Oct.19.2023.sqlite"
 
 
 IGNORE_FOLDERS = ["Adobe", "SG-1", "Avenue"]
@@ -277,18 +277,18 @@ class imdbInfoGrabber(QObject):
                     dbdata = OD()
                     dbdata["title"] = movie_data["title"]
                     if "director" in movie_data:
-                        dbdata["directors"] = str(get_person_names(movie_data["director"]))
+                        dbdata["directors"] = get_person_names(movie_data["director"])
                     elif "directors" in movie_data:
-                        dbdata["directors"] = str(get_person_names(movie_data["directors"]))
+                        dbdata["directors"] = get_person_names(movie_data["directors"])
                     else:
                         dbdata["directors"] = "NO_DIRECTOR_FOUND"
                     if "writer" in movie_data:
-                        dbdata["writers"] = str(get_person_names(movie_data["writer"]))
+                        dbdata["writers"] = get_person_names(movie_data["writer"])
                     elif "writers" in movie_data:
-                        dbdata["writers"] = str(get_person_names(movie_data["writers"]))
+                        dbdata["writers"] = get_person_names(movie_data["writers"])
                     else:
                         dbdata["writers"] = "NO_WRITER_FOUND"
-                    dbdata["producers"] = str(get_person_names(movie_data["producers"])) if "producers" in movie_data else "NO_PRODUCER_FOUND"
+                    dbdata["producers"] = get_person_names(movie_data["producers"]) if "producers" in movie_data else "NO_PRODUCER_FOUND"
 
                     #Just to check, I dont want to add if they arent needed but I have no idea
                     if "producer" in movie_data:
@@ -298,7 +298,7 @@ class imdbInfoGrabber(QObject):
 
                     #Should always have a cast. If we dont this is probably the wrong entry
 
-                    dbdata["actors"] = str(get_person_names(movie_data["cast"]))
+                    dbdata["actors"] = get_person_names(movie_data["cast"])
                     #Sometimes composers is actually labeled something else so we combine them all
                     #Gotta love the inconsistent data in the IMDb
                     dbdata["composers"] = []
@@ -313,7 +313,7 @@ class imdbInfoGrabber(QObject):
                     if "genres" not in movie_data:
                         print("Gskip")
                         continue
-                    dbdata["genres"] = str(movie_data["genres"])
+                    dbdata["genres"] = movie_data["genres"]
                     dbdata["runtime"] = movie_data["runtimes"][0]
                     #cover url isnt in the text data files so we wont be using this for now
                     #will be easy to get it manually later when we need it

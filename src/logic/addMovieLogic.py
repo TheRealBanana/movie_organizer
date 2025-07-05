@@ -75,7 +75,11 @@ class AddMovieDialogFunctions(QObject):
         #and the edit movie dialog appearing (which is where the online check is performed). Doing just the online
         #check would be very annoying, having the whole UI freeze for 5-10 seconds while it downloaded the data.
         ib = imdb.IMDb() # Online check
-        self.movie_data = ib.get_movie(self.movie_data.movieID)
+        online_movie_data = ib.get_movie(self.movie_data.movieID)
+        if "cast" not in online_movie_data and "cast" not in online_movie_data.data:
+            print("Missing CAST key, falling back to offline data...")
+        else:
+            self.movie_data = online_movie_data
         filepath = self.ui.filePathLineEdit.text()
         fpath = os.path.dirname(filepath)   # Get directory path
         fname = os.path.basename(filepath)  # Get file name
@@ -95,7 +99,14 @@ class AddMovieDialogFunctions(QObject):
             dbdata["writers"] = get_person_names(movie_data["writers"])
         else:
             dbdata["writers"] = "NO_WRITER_FOUND"
-        dbdata["producers"] = get_person_names(movie_data["producers"]) if "producers" in movie_data else "NO_PRODUCER_FOUND"
+        if "producers" in movie_data:
+            dbdata["producers"] = get_person_names(movie_data["producers"])
+        elif "producer" in movie_data:
+            dbdata["producers"] = get_person_names(movie_data["producer"])
+        else:
+            print("No producer key")
+            dbdata["producers"] = "NO_PRODUCER_FOUND"
+
 
         #Just to check, I dont want to add if they arent needed but I have no idea
         if "producer" in movie_data:
